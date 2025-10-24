@@ -22,19 +22,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     onFilterChange({ ...filters, [key]: value });
   };
 
-  const hasActiveFilters = filters.type !== 'All' || filters.size !== 'All' || 
-    filters.lighting !== null || filters.parking !== null || 
+  const hasActiveFilters = filters.type !== 'All' || filters.size !== 'All' ||
+    filters.lighting !== null || filters.parking !== null ||
     filters.accessibility !== null || filters.borough !== 'All Boroughs';
 
   return (
     <div className="relative">
       <button
         onClick={onToggle}
-        className={`flex items-center space-x-3 px-6 py-3 rounded-2xl border transition-all duration-200 shadow-sm ${
-          hasActiveFilters 
-            ? 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-200' 
+        className={`flex items-center space-x-3 px-6 py-3 rounded-2xl border transition-all duration-200 shadow-sm ${hasActiveFilters
+            ? 'bg-emerald-500 text-white border-emerald-600 shadow-emerald-200'
             : 'bg-white/90 backdrop-blur-sm border-emerald-200/50 text-emerald-700 hover:bg-emerald-50/80'
-        }`}
+          }`}
       >
         <Sliders className="h-5 w-5" />
         <span className="font-semibold">Filters</span>
@@ -91,15 +90,17 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 onChange={(e) => updateFilter('borough', e.target.value)}
                 className="w-full p-3 border border-emerald-200/50 rounded-xl focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-300 bg-white/80 text-emerald-900"
               >
+                <option value="All Boroughs">Tout le Grand Montréal</option> {/* ⬅️ ajout ici */}
                 {boroughs.map(borough => (
                   <option key={borough} value={borough}>{borough}</option>
                 ))}
               </select>
             </div>
 
+
             <div className="space-y-3">
               <label className="block text-sm font-semibold text-emerald-700">Commodités</label>
-              
+
               <label className="flex items-center space-x-3 p-2 rounded-lg hover:bg-emerald-50/50 transition-colors cursor-pointer">
                 <input
                   type="checkbox"

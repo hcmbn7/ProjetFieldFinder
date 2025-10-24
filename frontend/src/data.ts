@@ -1,5 +1,4 @@
 export const boroughs = [
-  "Tout le Grand Montréal",
   "Ahuntsic-Cartierville",
   "Anjou",
   "Boucherville",

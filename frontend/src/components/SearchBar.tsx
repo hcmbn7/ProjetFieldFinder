@@ -12,7 +12,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ searchTerm, onSearchChange, onCle
     <div className="relative">
       <input
         type="text"
-        placeholder="Search soccer fields by name, location, or borough..."
+        placeholder="Chercher par nom de terrain ou quartier/ville..."
         value={searchTerm}
         onChange={(e) => onSearchChange(e.target.value)}
         className="w-full pl-10 pr-4 py-3 rounded-xl border border-emerald-200/50 bg-white/80 text-gray-600 placeholder-gray-400 focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-300"

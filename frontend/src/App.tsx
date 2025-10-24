@@ -107,7 +107,7 @@ function App() {
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-700 to-green-600 bg-clip-text text-transparent">
                   FieldFinder
                 </h1>
-                <p className="text-sm text-emerald-600/80 font-medium">Discover soccer fields in the Greater Montreal area</p>
+                <p className="text-sm text-emerald-600/80 font-medium">Découvrez les terrains de soccer dans le Grand Montréal</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
