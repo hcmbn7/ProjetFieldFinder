@@ -326,7 +326,7 @@ function FieldFinderPage() {
               <div className="hidden lg:flex items-center space-x-2 text-emerald-600 bg-emerald-50/80 px-4 py-2 rounded-full border border-emerald-100">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-sm font-semibold">
-                  Mises à jour chaque visite
+                  Mises à jour chaque mois.
                 </span>
               </div>
             </div>
