@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { List, MapPin, Search } from "lucide-react";
 import MapComponent from "../components/MapComponent";
@@ -8,6 +8,8 @@ import FilterPanel from "../components/FilterPanel";
 import { fetchFields } from "../api/fields";
 import type { MapFilters, SoccerField, User } from "../types";
 import { filterFields } from "../utils";
+
+const FEATURED_FIELD_IDS = [1, 2, 3];
 
 function FieldFinderPage() {
   const [selectedField, setSelectedField] = useState<SoccerField | null>(null);
@@ -31,6 +33,7 @@ function FieldFinderPage() {
       return null;
     }
   });
+  const mapSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -84,6 +87,22 @@ function FieldFinderPage() {
     [fields, filters, searchTerm]
   );
 
+  const showcaseFields = useMemo(() => {
+    const selected = FEATURED_FIELD_IDS
+      .map((id) => fields.find((field) => field.id === id))
+      .filter((field): field is SoccerField => Boolean(field));
+
+    if (selected.length === FEATURED_FIELD_IDS.length) {
+      return selected;
+    }
+
+    const fallbackPool = fields.filter(
+      (field) => !FEATURED_FIELD_IDS.includes(field.id)
+    );
+
+    return [...selected, ...fallbackPool].slice(0, FEATURED_FIELD_IDS.length);
+  }, [fields]);
+
   const handleFieldClick = (field: SoccerField) => {
     setSelectedField(field);
   };
@@ -105,6 +124,12 @@ function FieldFinderPage() {
 
   const handleCloseCard = () => {
     setSelectedField(null);
+  };
+
+  const handleShowcaseClick = (field: SoccerField) => {
+    setViewMode("map");
+    setSelectedField(field);
+    mapSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const handleLogout = () => {
@@ -236,49 +261,130 @@ function FieldFinderPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        {viewMode === 'map' ? (
-          <div className="flex gap-8">
-            <div className="flex-1">
-              <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/50 overflow-hidden">
-                <div className="h-[650px] relative">
-                  <div className="absolute top-4 left-4 z-10">
-                    <div className="bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl border border-emerald-200/50 shadow-sm">
-                      <span className="text-xs font-semibold text-emerald-700">Interactive Map</span>
+      <div ref={mapSectionRef} className="max-w-7xl mx-auto px-6 lg:px-8 py-8 space-y-12">
+        <div>
+          {viewMode === 'map' ? (
+            <div className="flex gap-8">
+              <div className="flex-1">
+                <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/50 overflow-hidden">
+                  <div className="h-[650px] relative">
+                    <div className="absolute top-4 left-4 z-10">
+                      <div className="bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl border border-emerald-200/50 shadow-sm">
+                        <span className="text-xs font-semibold text-emerald-700">Interactive Map</span>
+                      </div>
                     </div>
+                    <MapComponent
+                      fields={filteredFields}
+                      onFieldClick={handleFieldClick}
+                      selectedField={selectedField ?? undefined}
+                    />
                   </div>
-                  <MapComponent
-                    fields={filteredFields}
-                    onFieldClick={handleFieldClick}
-                    selectedField={selectedField ?? undefined}
-                  />
                 </div>
+              </div>
+
+              {selectedField && (
+                <div className="w-96 flex-shrink-0">
+                  <div className="sticky top-8">
+                    <FieldCard field={selectedField} onClose={handleCloseCard} />
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredFields.map(field => (
+                  <div key={field.id} className="cursor-pointer transform hover:scale-105 transition-all duration-200">
+                    <FieldCard field={field} onClose={() => { }} />
+                  </div>
+                ))}
+              </div>
+              {filteredFields.length === 0 && (
+                <div className="text-center py-16">
+                  <div className="text-emerald-300 text-8xl mb-6">⚽</div>
+                  <h3 className="text-2xl font-bold text-emerald-700 mb-3">Aucun terrain trouvé</h3>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {showcaseFields.length > 0 && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-10">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-emerald-500 font-semibold mb-2">
+                  Sélection spéciale
+                </p>
+                <h2 className="text-3xl font-bold text-emerald-800">
+                  Top Terrains du moment
+                </h2>
+                <p className="text-sm text-emerald-600/80 mt-2 max-w-xl">
+                  Trois terrains coups de coeur à découvrir ce mois-ci.
+                </p>
+              </div>
+              <div className="hidden lg:flex items-center space-x-2 text-emerald-600 bg-emerald-50/80 px-4 py-2 rounded-full border border-emerald-100">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-sm font-semibold">
+                  Mises à jour chaque visite
+                </span>
               </div>
             </div>
 
-            {selectedField && (
-              <div className="w-96 flex-shrink-0">
-                <div className="sticky top-8">
-                  <FieldCard field={selectedField} onClose={handleCloseCard} />
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredFields.map(field => (
-                <div key={field.id} className="cursor-pointer transform hover:scale-105 transition-all duration-200">
-                  <FieldCard field={field} onClose={() => { }} />
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {showcaseFields.map((field) => {
+                const coverPhoto = field.photos?.[0] ?? "/Images/placeholder.jpeg";
+                return (
+                  <button
+                    key={field.id}
+                    type="button"
+                    onClick={() => handleShowcaseClick(field)}
+                    className="group w-full text-left bg-white rounded-2xl border border-emerald-100/60 overflow-hidden shadow-sm hover:shadow-emerald-100/60 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-50"
+                  >
+                    <div className="relative h-52 overflow-hidden">
+                      <img
+                        src={coverPhoto}
+                        alt={field.name}
+                        className="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
+                      />
+                      <div className="absolute top-4 left-4 bg-emerald-600/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-md">
+                        Coup de coeur
+                      </div>
+                    </div>
+                    <div className="p-5 space-y-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-emerald-800 mb-1">
+                          {field.name}
+                        </h3>
+                        <p className="text-sm text-emerald-600 flex items-center">
+                          <MapPin className="w-4 h-4 mr-2 text-emerald-500" />
+                          {field.borough || field.address}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl font-semibold">
+                          Format&nbsp;
+                          <span className="font-normal text-emerald-600">
+                            {field.format || "—"}
+                          </span>
+                        </div>
+                        <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl font-semibold">
+                          Surface&nbsp;
+                          <span className="font-normal text-emerald-600">
+                            {field.surface_type || "—"}
+                          </span>
+                        </div>
+                      </div>
+                      {field.description && (
+                        <p className="text-sm text-emerald-600/80 leading-relaxed">
+                          {field.description}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            {filteredFields.length === 0 && (
-              <div className="text-center py-16">
-                <div className="text-emerald-300 text-8xl mb-6">⚽</div>
-                <h3 className="text-2xl font-bold text-emerald-700 mb-3">Aucun terrain trouvé</h3>
-              </div>
-            )}
           </div>
         )}
       </div>
