@@ -3,20 +3,19 @@ export interface SoccerField {
   name: string;
   address: string;
   coordinates: [number, number];
-  type: 'Natural' | 'Artificial' | 'Indoor';
-  surface: string;
-  size: 'Full' | 'Half' | '7v7' | '5v5';
-  lighting: boolean;
-  parking: boolean;
-  accessibility: boolean;
+  surface_type?: string;
+  format?: string;
+  lighting?: boolean;
+  parking?: boolean;
+  accessibility?: boolean;
   phone?: string;
   website?: string;
-  image?: string;
   borough?: string;
   description?: string;
-  amenities: string[];
-  rating: number;
-  reviews: number;
+  amenities?: string[];
+  rating?: number;
+  reviews?: number;
+  photos?: string[];
 }
 
 export interface MapFilters {
@@ -26,4 +25,11 @@ export interface MapFilters {
   parking: boolean | null;
   accessibility: boolean | null;
   borough: string;
+}
+
+export interface User {
+  id: number;
+  email: string;
+  full_name: string;
+  is_active?: boolean;
 }

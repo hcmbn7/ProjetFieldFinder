@@ -1,24 +1,23 @@
 import React from "react";
 import {
-  MapPin,
-  Phone,
+  Accessibility,
+  Car,
   Globe,
   Lightbulb,
-  Car,
-  Accessibility,
+  MapPin,
+  Phone,
   Star,
   X,
 } from "lucide-react";
-import { Field } from "../api/fields";
 import { getFieldIcon } from "../utils";
+import type { SoccerField } from "../types";
 
 interface FieldCardProps {
-  field: Field;
+  field: SoccerField;
   onClose: () => void;
 }
 
 const FieldCard: React.FC<FieldCardProps> = ({ field, onClose }) => {
-  console.log("FieldCard props:", field);
   return (
     <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-emerald-100/50 p-6 max-w-md mx-auto">
       <div className="flex justify-between items-start mb-4">
