@@ -1,13 +1,55 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { List, MapPin, Search } from "lucide-react";
+import { Heart, List, MapPin, Search } from "lucide-react";
 import MapComponent from "../components/MapComponent";
 import FieldCard from "../components/FieldCard";
 import SearchBar from "../components/SearchBar";
 import FilterPanel from "../components/FilterPanel";
 import { fetchFields } from "../api/fields";
+import {
+  addUserFavorite,
+  fetchUserFavorites,
+  removeUserFavorite,
+} from "../api/users";
 import type { MapFilters, SoccerField, User } from "../types";
 import { filterFields } from "../utils";
+
+const USER_STORAGE_KEY = "fieldfinderUser";
+
+const sanitizeFavoriteIds = (values: unknown): number[] => {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  const sanitized = values
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value));
+  return Array.from(new Set(sanitized));
+};
+
+const areFavoriteListsEqual = (a: number[], b: number[]) => {
+  if (a === b) {
+    return true;
+  }
+  if (a.length !== b.length) {
+    return false;
+  }
+  return a.every((value, index) => value === b[index]);
+};
+
+const persistUserToStorage = (user: User | null) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    if (!user) {
+      localStorage.removeItem(USER_STORAGE_KEY);
+    } else {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    }
+  } catch (error) {
+    console.error("Failed to persist user to storage:", error);
+  }
+};
 
 const FEATURED_FIELD_IDS = [1, 2, 3];
 
@@ -27,21 +69,47 @@ function FieldFinderPage() {
   });
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     try {
-      const stored = localStorage.getItem("fieldfinderUser");
-      return stored ? (JSON.parse(stored) as User) : null;
+      const stored = localStorage.getItem(USER_STORAGE_KEY);
+      if (!stored) {
+        return null;
+      }
+      const parsed = JSON.parse(stored) as User;
+      if (parsed && Array.isArray(parsed.favorites)) {
+        return {
+          ...parsed,
+          favorites: sanitizeFavoriteIds(parsed.favorites),
+        };
+      }
+      return parsed;
     } catch {
       return null;
     }
   });
+  const [favorites, setFavorites] = useState<number[]>(() =>
+    currentUser?.favorites ? sanitizeFavoriteIds(currentUser.favorites) : []
+  );
+  const [favoritePendingIds, setFavoritePendingIds] = useState<number[]>([]);
   const mapSectionRef = useRef<HTMLDivElement | null>(null);
+  const favoritesSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === "fieldfinderUser") {
+      if (event.key === USER_STORAGE_KEY) {
         try {
-          setCurrentUser(event.newValue ? JSON.parse(event.newValue) : null);
+          const parsed = event.newValue
+            ? (JSON.parse(event.newValue) as User)
+            : null;
+          if (parsed) {
+            const sanitized = sanitizeFavoriteIds(parsed.favorites ?? []);
+            setCurrentUser({ ...parsed, favorites: sanitized });
+            setFavorites(sanitized);
+          } else {
+            setCurrentUser(null);
+            setFavorites([]);
+          }
         } catch {
           setCurrentUser(null);
+          setFavorites([]);
         }
       }
     };
@@ -53,6 +121,50 @@ function FieldFinderPage() {
   useEffect(() => {
     document.title = "FieldFinder";
   }, []);
+
+  useEffect(() => {
+    if (!currentUser?.id) {
+      setFavorites([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadFavorites = async () => {
+      try {
+        const remoteFavorites = await fetchUserFavorites(currentUser.id);
+        if (isCancelled) {
+          return;
+        }
+        const sanitized = sanitizeFavoriteIds(remoteFavorites);
+        setFavorites(sanitized);
+
+        let updatedUser: User | null = null;
+        setCurrentUser((prev) => {
+          if (!prev || prev.id !== currentUser.id) {
+            return prev;
+          }
+          const prevFavorites = sanitizeFavoriteIds(prev.favorites ?? []);
+          if (areFavoriteListsEqual(prevFavorites, sanitized)) {
+            return prev;
+          }
+          updatedUser = { ...prev, favorites: sanitized };
+          return updatedUser;
+        });
+        if (updatedUser) {
+          persistUserToStorage(updatedUser);
+        }
+      } catch (error) {
+        console.error("Failed to fetch favorites:", error);
+      }
+    };
+
+    loadFavorites();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentUser?.id]);
 
   useEffect(() => {
     const loadFields = async () => {
@@ -85,6 +197,14 @@ function FieldFinderPage() {
   const filteredFields = useMemo(
     () => filterFields(fields, filters, searchTerm),
     [fields, filters, searchTerm]
+  );
+
+  const favoriteFields = useMemo(
+    () =>
+      favorites
+        .map((id) => fields.find((field) => field.id === id))
+        .filter((field): field is SoccerField => Boolean(field)),
+    [favorites, fields]
   );
 
   const showcaseFields = useMemo(() => {
@@ -126,6 +246,49 @@ function FieldFinderPage() {
     setSelectedField(null);
   };
 
+  const handleToggleFavorite = async (fieldId: number) => {
+    if (!currentUser) {
+      return;
+    }
+    if (favoritePendingIds.includes(fieldId)) {
+      return;
+    }
+
+    const userId = currentUser.id;
+    const isFavorite = favorites.includes(fieldId);
+
+    setFavoritePendingIds((prev) =>
+      prev.includes(fieldId) ? prev : [...prev, fieldId]
+    );
+
+    try {
+      const updatedUser = isFavorite
+        ? await removeUserFavorite(userId, fieldId)
+        : await addUserFavorite(userId, fieldId);
+
+      if (!updatedUser || updatedUser.id !== userId) {
+        return;
+      }
+
+      const sanitized = sanitizeFavoriteIds(updatedUser.favorites ?? []);
+      setFavorites(sanitized);
+      const userWithFavorites: User = { ...updatedUser, favorites: sanitized };
+      setCurrentUser(userWithFavorites);
+      persistUserToStorage(userWithFavorites);
+    } catch (error) {
+      console.error("Failed to update favorites:", error);
+    } finally {
+      setFavoritePendingIds((prev) => prev.filter((id) => id !== fieldId));
+    }
+  };
+
+  const handleShowFavorites = () => {
+    if (!currentUser) {
+      return;
+    }
+    favoritesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const handleShowcaseClick = (field: SoccerField) => {
     setViewMode("map");
     setSelectedField(field);
@@ -133,8 +296,10 @@ function FieldFinderPage() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("fieldfinderUser");
+    persistUserToStorage(null);
     setCurrentUser(null);
+    setFavorites([]);
+    setFavoritePendingIds([]);
   };
 
   const userDisplayName =
@@ -187,6 +352,25 @@ function FieldFinderPage() {
                   <span>Liste</span>
                 </button>
               </div>
+              {currentUser && (
+                <button
+                  type="button"
+                  onClick={handleShowFavorites}
+                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-200 text-emerald-700 bg-white/80 hover:bg-emerald-50 transition-colors"
+                >
+                  <Heart
+                    className="h-4 w-4"
+                    strokeWidth={favoriteFields.length > 0 ? 2.5 : 2}
+                    fill={favoriteFields.length > 0 ? "currentColor" : "none"}
+                  />
+                  <span>Favoris</span>
+                  {favoriteFields.length > 0 && (
+                    <span className="ml-1 inline-flex items-center justify-center min-w-[1.5rem] px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white">
+                      {favoriteFields.length}
+                    </span>
+                  )}
+                </button>
+              )}
               {currentUser ? (
                 <div className="flex items-center space-x-4 ml-3">
                   <div className="text-right">
@@ -285,7 +469,13 @@ function FieldFinderPage() {
               {selectedField && (
                 <div className="w-96 flex-shrink-0">
                   <div className="sticky top-8">
-                    <FieldCard field={selectedField} onClose={handleCloseCard} />
+                    <FieldCard
+                      field={selectedField}
+                      onClose={handleCloseCard}
+                      onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
+                      isFavorite={favorites.includes(selectedField.id)}
+                      disableFavorite={favoritePendingIds.includes(selectedField.id)}
+                    />
                   </div>
                 </div>
               )}
@@ -295,7 +485,13 @@ function FieldFinderPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredFields.map(field => (
                   <div key={field.id} className="cursor-pointer transform hover:scale-105 transition-all duration-200">
-                    <FieldCard field={field} onClose={() => { }} />
+                    <FieldCard
+                      field={field}
+                      onClose={() => { }}
+                      onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
+                      isFavorite={favorites.includes(field.id)}
+                      disableFavorite={favoritePendingIds.includes(field.id)}
+                    />
                   </div>
                 ))}
               </div>
@@ -308,6 +504,77 @@ function FieldFinderPage() {
             </div>
           )}
         </div>
+
+        {currentUser && (
+          <div
+            ref={favoritesSectionRef}
+            className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-10"
+          >
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
+              <div>
+                <p className="text-sm uppercase tracking-[0.3em] text-emerald-500 font-semibold mb-2">
+                  Vos favoris
+                </p>
+                <h2 className="text-3xl font-bold text-emerald-800">
+                  Terrains sauvegardés
+                </h2>
+                <p className="text-sm text-emerald-600/80 mt-2 max-w-xl">
+                  Accédez rapidement aux terrains que vous aimez le plus. Retirez-les à tout moment grâce au bouton coeur.
+                </p>
+              </div>
+              <div className="hidden lg:flex items-center space-x-2 text-emerald-600 bg-emerald-50/80 px-4 py-2 rounded-full border border-emerald-100">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-sm font-semibold">
+                  {favoriteFields.length > 0
+                    ? `${favoriteFields.length} terrain${favoriteFields.length > 1 ? "s" : ""} sauvegardé${favoriteFields.length > 1 ? "s" : ""}`
+                    : "Aucun favori pour l'instant"}
+                </span>
+              </div>
+            </div>
+
+            {favoriteFields.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {favoriteFields.map((field) => (
+                  <div
+                    key={field.id}
+                    className="cursor-pointer transform hover:scale-[1.01] transition-all duration-200"
+                    onClick={() => {
+                      handleFieldClick(field);
+                      mapSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  >
+                    <FieldCard
+                      field={field}
+                      onToggleFavorite={handleToggleFavorite}
+                      isFavorite={favorites.includes(field.id)}
+                      disableFavorite={favoritePendingIds.includes(field.id)}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 rounded-2xl border border-dashed border-emerald-200/60 bg-emerald-50/40">
+                <div className="text-emerald-300 text-6xl mb-4">♡</div>
+                <h3 className="text-xl font-bold text-emerald-700 mb-2">
+                  Aucun favori pour l'instant
+                </h3>
+                <p className="text-sm text-emerald-600/80 mb-4 max-w-md mx-auto">
+                  Explorez la carte ou la liste puis ajoutez des terrains à vos favoris en cliquant sur le coeur.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode("map");
+                    mapSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors"
+                >
+                  Explorer la carte
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {showcaseFields.length > 0 && (
           <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-10">
