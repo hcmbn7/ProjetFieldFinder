@@ -387,6 +387,12 @@ function FieldFinderPage() {
                   >
                     Déconnexion
                   </button>
+                  <Link
+                    to="/admin"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors"
+                  >
+                    Admin
+                  </Link>
                 </div>
               ) : (
                 <div className="flex items-center space-x-3 ml-3">
@@ -401,6 +407,12 @@ function FieldFinderPage() {
                     className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors"
                   >
                     Inscription
+                  </Link>
+                  <Link
+                    to="/admin"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors"
+                  >
+                    Admin
                   </Link>
                 </div>
               )}
