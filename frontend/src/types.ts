@@ -40,3 +40,19 @@ export interface Admin {
   email: string;
   full_name: string;
 }
+
+export interface FieldSuggestion {
+  id: number;
+  name: string;
+  address: string;
+  latitude?: number;
+  longitude?: number;
+  description?: string;
+  contact?: string;
+  borough?: string;
+  surface_type?: string;
+  format?: string;
+  created_at?: string;
+  status?: string;
+  published_field_id?: number | null;
+}

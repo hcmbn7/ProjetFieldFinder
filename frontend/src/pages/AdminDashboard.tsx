@@ -8,9 +8,15 @@ import {
   loginAdmin,
   type FieldPayload,
 } from "../api/admin";
+import {
+  fetchSuggestions,
+  updateSuggestionApi,
+  deleteSuggestionApi,
+  publishSuggestionApi,
+} from "../api/suggestions";
 import { fetchFields } from "../api/fields";
 import { boroughs, formatOptions, surfaceTypes } from "../data";
-import type { Admin, SoccerField } from "../types";
+import type { Admin, FieldSuggestion, SoccerField } from "../types";
 
 const ADMIN_STORAGE_KEY = "fieldfinderAdmin";
 const ADMIN_TOKEN_STORAGE_KEY = "fieldfinderAdminToken";
@@ -129,6 +135,9 @@ export default function AdminDashboard() {
   const [formSaving, setFormSaving] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginSaving, setLoginSaving] = useState(false);
+  const [suggestions, setSuggestions] = useState<FieldSuggestion[]>([]);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  const [suggestionSavingId, setSuggestionSavingId] = useState<number | null>(null);
 
   const loadFields = useCallback(async () => {
     try {
@@ -138,6 +147,21 @@ export default function AdminDashboard() {
       console.error("Impossible de charger les terrains", error);
     }
   }, []);
+
+  const loadSuggestionsState = useCallback(
+    async (token: string) => {
+      try {
+        const data = await fetchSuggestions(token);
+        setSuggestions(data);
+      } catch (error) {
+        console.error("Impossible de charger les suggestions", error);
+        setSuggestionError(
+          error instanceof Error ? error.message : "Impossible de charger les suggestions."
+        );
+      }
+    },
+    []
+  );
 
   const persistAdminSession = useCallback((admin: Admin, token: string) => {
     setCurrentAdmin(admin);
@@ -184,6 +208,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadFields();
   }, [loadFields]);
+
+  useEffect(() => {
+    if (authToken) {
+      loadSuggestionsState(authToken);
+    } else {
+      setSuggestions([]);
+    }
+  }, [authToken, loadSuggestionsState]);
 
   const handleLogin = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -299,6 +331,83 @@ export default function AdminDashboard() {
     },
     [authToken, formMode, formState, loadFields, resetForm]
   );
+
+  const handleSuggestionChange = (id: number, patch: Partial<FieldSuggestion>) => {
+    setSuggestions((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...patch } : item))
+    );
+  };
+
+  const handleSaveSuggestion = async (item: FieldSuggestion) => {
+    if (!authToken) {
+      setSuggestionError("Authentification administrateur requise.");
+      return;
+    }
+    setSuggestionSavingId(item.id);
+    setSuggestionError(null);
+    try {
+      await updateSuggestionApi(item.id, {
+        name: item.name,
+        address: item.address,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        description: item.description,
+        contact: item.contact,
+        borough: item.borough,
+        surface_type: item.surface_type,
+        format: item.format,
+        status: item.status,
+      });
+      await loadSuggestionsState(authToken);
+    } catch (error) {
+      setSuggestionError(
+        error instanceof Error ? error.message : "Impossible d'enregistrer la suggestion."
+      );
+    } finally {
+      setSuggestionSavingId(null);
+    }
+  };
+
+  const handleDeleteSuggestion = async (id: number) => {
+    if (!authToken) {
+      setSuggestionError("Authentification administrateur requise.");
+      return;
+    }
+    setSuggestionError(null);
+    try {
+      await deleteSuggestionApi(id);
+      await loadSuggestionsState(authToken);
+    } catch (error) {
+      setSuggestionError(
+        error instanceof Error ? error.message : "Suppression impossible."
+      );
+    }
+  };
+
+  const handlePublishSuggestion = async (suggestion: FieldSuggestion) => {
+    if (!authToken) {
+      setSuggestionError("Connectez-vous en tant qu'admin pour publier une suggestion.");
+      return;
+    }
+    if (!Number.isFinite(suggestion.latitude ?? NaN) || !Number.isFinite(suggestion.longitude ?? NaN)) {
+      setSuggestionError("Latitude et longitude nécessaires pour publier ce terrain.");
+      return;
+    }
+    setSuggestionError(null);
+    setSuggestionSavingId(suggestion.id);
+    try {
+      await publishSuggestionApi(suggestion.id);
+      await loadSuggestionsState(authToken);
+      await loadFields();
+    } catch (error) {
+      console.error("Publication échouée", error);
+      setSuggestionError(
+        error instanceof Error ? error.message : "Impossible de publier la suggestion."
+      );
+    } finally {
+      setSuggestionSavingId(null);
+    }
+  };
 
   const totalFields = useMemo(() => fields.length, [fields]);
 
@@ -765,6 +874,140 @@ export default function AdminDashboard() {
                   </div>
                 )}
               </div>
+            </section>
+
+            <section className="bg-white rounded-3xl shadow-2xl border border-emerald-100/60 p-10 space-y-6">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div>
+                  <h2 className="text-2xl font-semibold text-emerald-900">
+                    Suggestions des utilisateurs
+                  </h2>
+                  <p className="text-sm text-emerald-700/80">
+                    Publiez, modifiez ou supprimez les terrains proposés.
+                  </p>
+                </div>
+                {suggestionError && (
+                  <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {suggestionError}
+                  </div>
+                )}
+              </div>
+
+              {suggestions.length === 0 ? (
+                <p className="text-sm text-emerald-700/70">
+                  Aucune suggestion pour le moment.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {suggestions.map((item) => (
+                    <div
+                      key={item.id}
+                      className="border border-emerald-100 rounded-2xl p-4 shadow-sm bg-emerald-50/30"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <input
+                          value={item.name}
+                          onChange={(e) =>
+                            handleSuggestionChange(item.id, { name: e.target.value })
+                          }
+                          className="rounded-xl border border-emerald-200/70 bg-white px-3 py-2 text-sm text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          placeholder="Nom"
+                        />
+                        <input
+                          value={item.address}
+                          onChange={(e) =>
+                            handleSuggestionChange(item.id, { address: e.target.value })
+                          }
+                          className="rounded-xl border border-emerald-200/70 bg-white px-3 py-2 text-sm text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          placeholder="Adresse"
+                        />
+                        <input
+                          value={item.latitude ?? ""}
+                          onChange={(e) =>
+                            handleSuggestionChange(item.id, {
+                              latitude:
+                                e.target.value.trim() === ""
+                                  ? undefined
+                                  : Number(e.target.value),
+                            })
+                          }
+                          className="rounded-xl border border-emerald-200/70 bg-white px-3 py-2 text-sm text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          placeholder="Latitude"
+                        />
+                        <input
+                          value={item.longitude ?? ""}
+                          onChange={(e) =>
+                            handleSuggestionChange(item.id, {
+                              longitude:
+                                e.target.value.trim() === ""
+                                  ? undefined
+                                  : Number(e.target.value),
+                            })
+                          }
+                          className="rounded-xl border border-emerald-200/70 bg-white px-3 py-2 text-sm text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          placeholder="Longitude"
+                        />
+                        <input
+                          value={item.format ?? ""}
+                          onChange={(e) =>
+                            handleSuggestionChange(item.id, { format: e.target.value })
+                          }
+                          className="rounded-xl border border-emerald-200/70 bg-white px-3 py-2 text-sm text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          placeholder="Format"
+                        />
+                        <input
+                          value={item.surface_type ?? ""}
+                          onChange={(e) =>
+                            handleSuggestionChange(item.id, { surface_type: e.target.value })
+                          }
+                          className="rounded-xl border border-emerald-200/70 bg-white px-3 py-2 text-sm text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          placeholder="Surface"
+                        />
+                        <textarea
+                          value={item.description ?? ""}
+                          onChange={(e) =>
+                            handleSuggestionChange(item.id, { description: e.target.value })
+                          }
+                          className="md:col-span-2 rounded-xl border border-emerald-200/70 bg-white px-3 py-2 text-sm text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          placeholder="Notes"
+                        />
+                        <input
+                          value={item.contact ?? ""}
+                          onChange={(e) =>
+                            handleSuggestionChange(item.id, { contact: e.target.value })
+                          }
+                          className="md:col-span-2 rounded-xl border border-emerald-200/70 bg-white px-3 py-2 text-sm text-emerald-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                          placeholder="Contact (facultatif)"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-3 mt-4">
+                        <button
+                          type="button"
+                          onClick={() => handlePublishSuggestion(item)}
+                          disabled={suggestionSavingId === item.id}
+                          className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-60"
+                        >
+                          {suggestionSavingId === item.id ? "Publication..." : "Publier"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveSuggestion(item)}
+                          className="px-4 py-2 rounded-xl text-sm font-semibold border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition"
+                        >
+                          Enregistrer les modifications
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSuggestion(item.id)}
+                          className="px-4 py-2 rounded-xl text-sm font-semibold border border-red-200 text-red-700 hover:bg-red-50 transition"
+                        >
+                          Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </>
         )}

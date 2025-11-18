@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart, List, MapPin, Search } from "lucide-react";
+import { Heart, List, MapPin, Search, Send } from "lucide-react";
 import MapComponent from "../components/MapComponent";
 import FieldCard from "../components/FieldCard";
 import SearchBar from "../components/SearchBar";
@@ -11,6 +11,7 @@ import {
   fetchUserFavorites,
   removeUserFavorite,
 } from "../api/users";
+import { submitSuggestion } from "../api/suggestions";
 import type { MapFilters, SoccerField, User } from "../types";
 import { filterFields } from "../utils";
 
@@ -100,6 +101,16 @@ function FieldFinderPage() {
   const mapCanvasRef = useRef<HTMLDivElement | null>(null);
   const favoritesSectionRef = useRef<HTMLDivElement | null>(null);
   const compareSectionRef = useRef<HTMLDivElement | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionForm, setSuggestionForm] = useState({
+    name: "",
+    address: "",
+    latitude: "",
+    longitude: "",
+    description: "",
+    contact: "",
+  });
+  const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -328,6 +339,7 @@ function FieldFinderPage() {
     setShowCompare(false);
     setCompareFieldIds([null, null]);
     setCompareSelectionTarget(null);
+    setShowSuggestions(false);
   };
 
   const formatDisplayName = (value?: string) => {
@@ -400,6 +412,45 @@ function FieldFinderPage() {
   const comparedFields: (SoccerField | null)[] = compareFieldIds.map((id) =>
     id ? filteredFields.find((field) => field.id === id) ?? null : null
   );
+
+  const handleSubmitSuggestion = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmedName = suggestionForm.name.trim();
+    const trimmedAddress = suggestionForm.address.trim();
+    if (!trimmedName || !trimmedAddress) {
+      setSuggestionMessage("Veuillez fournir au minimum un nom et une adresse.");
+      return;
+    }
+    const latitude = Number(suggestionForm.latitude);
+    const longitude = Number(suggestionForm.longitude);
+    const payload = {
+      name: trimmedName,
+      address: trimmedAddress,
+      latitude: Number.isFinite(latitude) ? latitude : undefined,
+      longitude: Number.isFinite(longitude) ? longitude : undefined,
+      description: suggestionForm.description.trim() || undefined,
+      contact: suggestionForm.contact.trim() || undefined,
+    };
+    submitSuggestion(payload)
+      .then(() => {
+        setSuggestionForm({
+          name: "",
+          address: "",
+          latitude: "",
+          longitude: "",
+          description: "",
+          contact: "",
+        });
+        setSuggestionMessage("Merci ! Votre suggestion a été envoyée aux administrateurs.");
+      })
+      .catch((error) => {
+        setSuggestionMessage(
+          error instanceof Error
+            ? error.message
+            : "Impossible d'envoyer votre suggestion pour le moment."
+        );
+      });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
@@ -528,70 +579,85 @@ function FieldFinderPage() {
 
       <div className="bg-gradient-to-r from-emerald-500/5 via-green-500/5 to-teal-500/5 border-b border-emerald-100/50">
         <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
-            <div className="flex-1 max-w-3xl">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-emerald-500" />
-                </div>
-                <SearchBar
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                  onClear={handleClearSearch}
+          <div className="space-y-4">
+            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <FilterPanel
+                  filters={filters}
+                  onFilterChange={setFilters}
+                  isOpen={showFilters}
+                  onToggle={() => setShowFilters(!showFilters)}
+                  onClear={handleClearFilters}
                 />
+                {currentUser && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowOnlyFavoritesOnMap((previous) => !previous)
+                    }
+                    className={`flex items-center space-x-2 px-4 py-3 rounded-2xl border transition-all duration-200 shadow-sm ${
+                      showOnlyFavoritesOnMap
+                        ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-200"
+                        : "bg-white/90 backdrop-blur-sm border-emerald-200/50 text-emerald-700 hover:bg-emerald-50/80"
+                    }`}
+                  >
+                    <Heart
+                      className="h-5 w-5"
+                      fill={showOnlyFavoritesOnMap ? "currentColor" : "none"}
+                    />
+                    <span className="font-semibold">
+                      {showOnlyFavoritesOnMap
+                        ? "Favoris sur la carte"
+                        : "Afficher favoris"}
+                    </span>
+                  </button>
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl border border-emerald-200/50 shadow-sm">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-semibold text-emerald-700">
+                        {visibleFieldCount} terrains trouvés
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCompare((prev) => !prev)}
+                    className={`inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold border transition-colors shadow-sm ${
+                      showCompare
+                        ? "border-emerald-600 bg-emerald-500 text-white shadow-emerald-200"
+                        : "border-emerald-300 text-emerald-700 bg-white/90 backdrop-blur-sm hover:bg-emerald-50"
+                    }`}
+                  >
+                    Session choix
+                    <span className="text-xs text-emerald-500">
+                      comparer 2 terrains
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSuggestions((prev) => !prev)}
+                    className={`inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold border transition-colors shadow-sm ${
+                      showSuggestions
+                        ? "border-emerald-600 bg-emerald-500 text-white shadow-emerald-200"
+                        : "border-emerald-300 text-emerald-700 bg-white/90 backdrop-blur-sm hover:bg-emerald-50"
+                    }`}
+                  >
+                    Proposer un terrain
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <FilterPanel
-                filters={filters}
-                onFilterChange={setFilters}
-                isOpen={showFilters}
-                onToggle={() => setShowFilters(!showFilters)}
-                onClear={handleClearFilters}
-              />
-              {currentUser && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setShowOnlyFavoritesOnMap((previous) => !previous)
-                  }
-                  className={`flex items-center space-x-2 px-4 py-3 rounded-2xl border transition-all duration-200 shadow-sm ${
-                    showOnlyFavoritesOnMap
-                      ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-200"
-                      : "bg-white/90 backdrop-blur-sm border-emerald-200/50 text-emerald-700 hover:bg-emerald-50/80"
-                  }`}
-                >
-                  <Heart
-                    className="h-5 w-5"
-                    fill={showOnlyFavoritesOnMap ? "currentColor" : "none"}
-                  />
-                  <span className="font-semibold">
-                    {showOnlyFavoritesOnMap
-                      ? "Favoris sur la carte"
-                      : "Afficher favoris"}
-                  </span>
-                </button>
-              )}
-              <div className="flex items-center gap-3">
-                <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl border border-emerald-200/50 shadow-sm">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-semibold text-emerald-700">
-                      {visibleFieldCount} terrains trouvés
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCompare((prev) => !prev)}
-                  className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold border border-emerald-300 text-emerald-700 bg-white/90 backdrop-blur-sm hover:bg-emerald-50 transition-colors shadow-sm"
-                >
-                  Session choix
-                  <span className="text-xs text-emerald-500">
-                    comparer 2 terrains
-                  </span>
-                </button>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-emerald-500" />
               </div>
+              <SearchBar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                onClear={handleClearSearch}
+              />
             </div>
           </div>
         </div>
@@ -674,6 +740,77 @@ function FieldFinderPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {showSuggestions && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-6 sm:p-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-500">
+                Suggestion
+              </p>
+              <h3 className="text-xl font-bold text-emerald-800">
+                Proposez un nouveau terrain
+              </h3>
+              <p className="text-sm text-emerald-600/80">
+                Partagez un terrain manquant pour que les administrateurs puissent le publier.
+              </p>
+            </div>
+            {suggestionMessage && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-800 shadow-sm">
+                {suggestionMessage}
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={handleSubmitSuggestion} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              value={suggestionForm.name}
+              onChange={(e) => setSuggestionForm({ ...suggestionForm, name: e.target.value })}
+              placeholder="Nom du terrain *"
+              className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            />
+            <input
+              value={suggestionForm.address}
+              onChange={(e) => setSuggestionForm({ ...suggestionForm, address: e.target.value })}
+              placeholder="Adresse *"
+              className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            />
+            <input
+              value={suggestionForm.latitude}
+              onChange={(e) => setSuggestionForm({ ...suggestionForm, latitude: e.target.value })}
+              placeholder="Latitude (optionnel)"
+              className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            />
+            <input
+              value={suggestionForm.longitude}
+              onChange={(e) => setSuggestionForm({ ...suggestionForm, longitude: e.target.value })}
+              placeholder="Longitude (optionnel)"
+              className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            />
+            <textarea
+              value={suggestionForm.description}
+              onChange={(e) => setSuggestionForm({ ...suggestionForm, description: e.target.value })}
+              placeholder="Description (surface, éclairage, etc.)"
+              className="md:col-span-2 rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 min-h-[90px]"
+            />
+            <input
+              value={suggestionForm.contact}
+              onChange={(e) => setSuggestionForm({ ...suggestionForm, contact: e.target.value })}
+              placeholder="Votre courriel ou téléphone (optionnel)"
+              className="md:col-span-2 rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            />
+            <div className="md:col-span-2 flex justify-end">
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                Envoyer la suggestion
+              </button>
+            </div>
+          </form>
           </div>
         )}
 
