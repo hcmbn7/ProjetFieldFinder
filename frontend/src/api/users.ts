@@ -8,6 +8,7 @@ const FAVORITES_ENDPOINT = (userId: number) =>
   `${USERS_ENDPOINT}/${userId}/favorites`;
 const FAVORITE_ITEM_ENDPOINT = (userId: number, fieldId: number) =>
   `${USERS_ENDPOINT}/${userId}/favorites/${fieldId}`;
+const USER_ITEM_ENDPOINT = (userId: number) => `${USERS_ENDPOINT}/${userId}`;
 
 export interface SignupPayload {
   email: string;
@@ -19,6 +20,10 @@ export interface SignupPayload {
 export interface LoginPayload {
   email: string;
   password: string;
+}
+
+export interface UpdateUserPayload {
+  full_name?: string;
 }
 
 async function parseError(res: Response): Promise<string> {
@@ -113,6 +118,23 @@ export async function replaceUserFavorites(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ favorites }),
+  });
+
+  if (!res.ok) {
+    throw new Error(await parseError(res));
+  }
+
+  return res.json();
+}
+
+export async function updateUser(
+  userId: number,
+  payload: UpdateUserPayload
+): Promise<User> {
+  const res = await fetch(USER_ITEM_ENDPOINT(userId), {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {

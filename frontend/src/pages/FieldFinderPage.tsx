@@ -304,8 +304,30 @@ function FieldFinderPage() {
     setShowOnlyFavoritesOnMap(false);
   };
 
+  const formatDisplayName = (value?: string) => {
+    if (!value) return "";
+    return value
+      .trim()
+      .split(/\s+/)
+      .map(
+        (part) =>
+          part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+      )
+      .join(" ");
+  };
+
   const userDisplayName =
-    currentUser?.full_name?.trim() || currentUser?.email || "";
+    formatDisplayName(currentUser?.full_name) || currentUser?.email || "";
+
+  const userInitials = useMemo(() => {
+    const source = formatDisplayName(currentUser?.full_name) || currentUser?.email || "";
+    if (!source) return "FF";
+    const parts = source.split(" ").filter(Boolean);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    }
+    return source.slice(0, 2).toUpperCase();
+  }, [currentUser?.email, currentUser?.full_name]);
 
   const mapFields = useMemo(() => {
     if (!showOnlyFavoritesOnMap) {
@@ -350,90 +372,99 @@ function FieldFinderPage() {
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-3">
-              <div className="flex w-full sm:w-auto items-center bg-emerald-50/80 rounded-2xl p-1.5 border border-emerald-200/50">
-                <button
-                  onClick={() => setViewMode("map")}
-                  className={`flex flex-1 items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 sm:flex-none ${
-                    viewMode === "map"
-                      ? "bg-white text-emerald-700 shadow-md border border-emerald-200"
-                      : "text-emerald-600/70 hover:text-emerald-700 hover:bg-white/50"
-                  }`}
-                >
-                  <MapPin className="h-4 w-4" />
-                  <span>Carte</span>
-                </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`flex flex-1 items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 sm:flex-none ${
-                    viewMode === "list"
-                      ? "bg-white text-emerald-700 shadow-md border border-emerald-200"
-                      : "text-emerald-600/70 hover:text-emerald-700 hover:bg-white/50"
-                  }`}
-                >
-                  <List className="h-4 w-4" />
-                  <span>Liste</span>
-                </button>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-start lg:items-center gap-3 w-full">
+              <div className="flex flex-wrap items-center justify-start gap-3 w-full">
+                <div className="flex items-center bg-emerald-50/80 rounded-2xl p-1.5 border border-emerald-200/50">
+                  <button
+                    onClick={() => setViewMode("map")}
+                    className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                      viewMode === "map"
+                        ? "bg-white text-emerald-700 shadow-md border border-emerald-200"
+                        : "text-emerald-600/70 hover:text-emerald-700 hover:bg-white/50"
+                    }`}
+                  >
+                    <MapPin className="h-4 w-4" />
+                    <span>Carte</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                      viewMode === "list"
+                        ? "bg-white text-emerald-700 shadow-md border border-emerald-200"
+                        : "text-emerald-600/70 hover:text-emerald-700 hover:bg-white/50"
+                    }`}
+                  >
+                    <List className="h-4 w-4" />
+                    <span>Liste</span>
+                  </button>
+                </div>
+                {currentUser && (
+                  <button
+                    type="button"
+                    onClick={handleShowFavorites}
+                    className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-200 text-emerald-700 bg-white/80 hover:bg-emerald-50 transition-colors justify-center shadow-sm"
+                  >
+                    <Heart
+                      className="h-4 w-4"
+                      strokeWidth={favoriteFields.length > 0 ? 2.5 : 2}
+                      fill={favoriteFields.length > 0 ? "currentColor" : "none"}
+                    />
+                    <span>Favoris</span>
+                    {favoriteFields.length > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center min-w-[1.5rem] px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white">
+                        {favoriteFields.length}
+                      </span>
+                    )}
+                  </button>
+                )}
               </div>
-              {currentUser && (
-                <button
-                  type="button"
-                  onClick={handleShowFavorites}
-                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-200 text-emerald-700 bg-white/80 hover:bg-emerald-50 transition-colors w-full sm:w-auto justify-center"
-                >
-                  <Heart
-                    className="h-4 w-4"
-                    strokeWidth={favoriteFields.length > 0 ? 2.5 : 2}
-                    fill={favoriteFields.length > 0 ? "currentColor" : "none"}
-                  />
-                  <span>Favoris</span>
-                  {favoriteFields.length > 0 && (
-                    <span className="ml-1 inline-flex items-center justify-center min-w-[1.5rem] px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white">
-                      {favoriteFields.length}
-                    </span>
-                  )}
-                </button>
-              )}
+
               {currentUser ? (
-                <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3 sm:gap-4 ml-0 sm:ml-3">
-                  <div className="text-right">
-                    <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide">
-                      Connecté
-                    </p>
-                    <p className="text-sm font-semibold text-emerald-700">
+                <div className="flex flex-wrap items-center justify-start lg:justify-end gap-3 md:gap-4">
+                  <div className="flex items-center gap-3 bg-gradient-to-r from-white to-emerald-50 border border-emerald-200/80 rounded-2xl px-4 py-2 shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white font-bold flex items-center justify-center">
+                      {userInitials}
+                    </div>
+                    <p className="text-sm font-semibold text-emerald-800">
                       {userDisplayName}
                     </p>
                   </div>
+                  <Link
+                    to="/profile"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors text-center"
+                  >
+                    Profil
+                  </Link>
                   <button
                     onClick={handleLogout}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors w-full sm:w-auto"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors"
                   >
                     Déconnexion
                   </button>
                   <Link
                     to="/admin"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors w-full sm:w-auto text-center"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors text-center"
                   >
                     Admin
                   </Link>
                 </div>
               ) : (
-                <div className="flex w-full sm:w-auto flex-wrap items-center justify-end sm:justify-start gap-3 ml-0 sm:ml-3">
+                <div className="flex flex-wrap items-center justify-end md:justify-start gap-3">
                   <Link
                     to="/login"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors w-full sm:w-auto text-center"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors text-center"
                   >
                     Connexion
                   </Link>
                   <Link
                     to="/signup"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors w-full sm:w-auto text-center"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors text-center"
                   >
                     Inscription
                   </Link>
                   <Link
                     to="/admin"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors w-full sm:w-auto text-center"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors text-center"
                   >
                     Admin
                   </Link>

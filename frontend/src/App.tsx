@@ -3,6 +3,7 @@ import FieldFinderPage from "./pages/FieldFinderPage"
 import Login from "./pages/Login"
 import Signup from "./pages/Signup"
 import AdminDashboard from "./pages/AdminDashboard"
+import Profile from "./pages/Profile"
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/admin" element={<AdminDashboard />} />
+      <Route path="/profile" element={<Profile />} />
     </Routes>
   )
 }
