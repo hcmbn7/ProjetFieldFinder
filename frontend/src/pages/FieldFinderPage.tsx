@@ -308,8 +308,8 @@ function FieldFinderPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
       <div className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-emerald-100">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between h-auto md:h-20 py-6 md:py-0">
             <div className="flex items-center space-x-4">
               <div className="flex items-center justify-center w-12 h-12 rounded-2xl shadow-lg">
                 <img
@@ -327,11 +327,11 @@ function FieldFinderPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center bg-emerald-50/80 rounded-2xl p-1.5 border border-emerald-200/50">
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex w-full sm:w-auto items-center bg-emerald-50/80 rounded-2xl p-1.5 border border-emerald-200/50">
                 <button
                   onClick={() => setViewMode("map")}
-                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  className={`flex flex-1 items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 sm:flex-none ${
                     viewMode === "map"
                       ? "bg-white text-emerald-700 shadow-md border border-emerald-200"
                       : "text-emerald-600/70 hover:text-emerald-700 hover:bg-white/50"
@@ -342,7 +342,7 @@ function FieldFinderPage() {
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  className={`flex flex-1 items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 sm:flex-none ${
                     viewMode === "list"
                       ? "bg-white text-emerald-700 shadow-md border border-emerald-200"
                       : "text-emerald-600/70 hover:text-emerald-700 hover:bg-white/50"
@@ -356,7 +356,7 @@ function FieldFinderPage() {
                 <button
                   type="button"
                   onClick={handleShowFavorites}
-                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-200 text-emerald-700 bg-white/80 hover:bg-emerald-50 transition-colors"
+                  className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-200 text-emerald-700 bg-white/80 hover:bg-emerald-50 transition-colors w-full sm:w-auto justify-center"
                 >
                   <Heart
                     className="h-4 w-4"
@@ -372,7 +372,7 @@ function FieldFinderPage() {
                 </button>
               )}
               {currentUser ? (
-                <div className="flex items-center space-x-4 ml-3">
+                <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3 sm:gap-4 ml-0 sm:ml-3">
                   <div className="text-right">
                     <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide">
                       Connecté
@@ -383,34 +383,34 @@ function FieldFinderPage() {
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors w-full sm:w-auto"
                   >
                     Déconnexion
                   </button>
                   <Link
                     to="/admin"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors w-full sm:w-auto text-center"
                   >
                     Admin
                   </Link>
                 </div>
               ) : (
-                <div className="flex items-center space-x-3 ml-3">
+                <div className="flex w-full sm:w-auto flex-wrap items-center justify-end sm:justify-start gap-3 ml-0 sm:ml-3">
                   <Link
                     to="/login"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors w-full sm:w-auto text-center"
                   >
                     Connexion
                   </Link>
                   <Link
                     to="/signup"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors w-full sm:w-auto text-center"
                   >
                     Inscription
                   </Link>
                   <Link
                     to="/admin"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors"
+                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors w-full sm:w-auto text-center"
                   >
                     Admin
                   </Link>
@@ -422,7 +422,7 @@ function FieldFinderPage() {
       </div>
 
       <div className="bg-gradient-to-r from-emerald-500/5 via-green-500/5 to-teal-500/5 border-b border-emerald-100/50">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
             <div className="flex-1 max-w-3xl">
               <div className="relative">
@@ -457,13 +457,13 @@ function FieldFinderPage() {
         </div>
       </div>
 
-      <div ref={mapSectionRef} className="max-w-7xl mx-auto px-6 lg:px-8 py-8 space-y-12">
+      <div ref={mapSectionRef} className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 space-y-12">
         <div>
           {viewMode === 'map' ? (
-            <div className="flex gap-8">
-              <div className="flex-1">
+            <div className="flex flex-col lg:flex-row gap-8">
+              <div className="flex-1 w-full">
                 <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/50 overflow-hidden">
-                  <div className="h-[650px] relative">
+                  <div className="h-[420px] md:h-[560px] lg:h-[650px] relative">
                     <div className="absolute top-4 left-4 z-10">
                       <div className="bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl border border-emerald-200/50 shadow-sm">
                         <span className="text-xs font-semibold text-emerald-700">Interactive Map</span>
@@ -479,8 +479,8 @@ function FieldFinderPage() {
               </div>
 
               {selectedField && (
-                <div className="w-96 flex-shrink-0">
-                  <div className="sticky top-8">
+                <div className="w-full lg:w-96 flex-shrink-0">
+                  <div className="sticky top-4 lg:top-8">
                     <FieldCard
                       field={selectedField}
                       onClose={handleCloseCard}
@@ -493,8 +493,8 @@ function FieldFinderPage() {
               )}
             </div>
           ) : (
-            <div className="flex-1">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex-1 w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredFields.map(field => (
                   <div key={field.id} className="cursor-pointer transform hover:scale-105 transition-all duration-200">
                     <FieldCard
@@ -520,7 +520,7 @@ function FieldFinderPage() {
         {currentUser && (
           <div
             ref={favoritesSectionRef}
-            className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-10"
+            className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-6 sm:p-10"
           >
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
               <div>
@@ -545,7 +545,7 @@ function FieldFinderPage() {
             </div>
 
             {favoriteFields.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {favoriteFields.map((field) => (
                   <div
                     key={field.id}
@@ -589,7 +589,7 @@ function FieldFinderPage() {
         )}
 
         {showcaseFields.length > 0 && (
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-10">
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-6 sm:p-10">
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
               <div>
                 <p className="text-sm uppercase tracking-[0.3em] text-emerald-500 font-semibold mb-2">
@@ -610,7 +610,7 @@ function FieldFinderPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {showcaseFields.map((field) => {
                 const coverPhoto = field.photos?.[0] ?? "/Images/placeholder.jpeg";
                 return (
