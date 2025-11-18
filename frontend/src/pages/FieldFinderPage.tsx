@@ -90,8 +90,16 @@ function FieldFinderPage() {
   );
   const [favoritePendingIds, setFavoritePendingIds] = useState<number[]>([]);
   const [showOnlyFavoritesOnMap, setShowOnlyFavoritesOnMap] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
+  const [compareFieldIds, setCompareFieldIds] = useState<[number | null, number | null]>([
+    null,
+    null,
+  ]);
+  const [compareSelectionTarget, setCompareSelectionTarget] = useState<0 | 1 | null>(null);
   const mapSectionRef = useRef<HTMLDivElement | null>(null);
+  const mapCanvasRef = useRef<HTMLDivElement | null>(null);
   const favoritesSectionRef = useRef<HTMLDivElement | null>(null);
+  const compareSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -225,6 +233,21 @@ function FieldFinderPage() {
   }, [fields]);
 
   const handleFieldClick = (field: SoccerField) => {
+    if (compareSelectionTarget !== null) {
+      setCompareFieldIds((prev) => {
+        const next: [number | null, number | null] = [...prev];
+        next[compareSelectionTarget] = field.id;
+        return next;
+      });
+      setCompareSelectionTarget(null);
+      setShowCompare(true);
+      setSelectedField(field);
+      compareSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      return;
+    }
     setSelectedField(field);
   };
 
@@ -302,6 +325,9 @@ function FieldFinderPage() {
     setFavorites([]);
     setFavoritePendingIds([]);
     setShowOnlyFavoritesOnMap(false);
+    setShowCompare(false);
+    setCompareFieldIds([null, null]);
+    setCompareSelectionTarget(null);
   };
 
   const formatDisplayName = (value?: string) => {
@@ -349,6 +375,31 @@ function FieldFinderPage() {
     viewMode === "map" && showOnlyFavoritesOnMap
       ? mapFields.length
       : filteredFields.length;
+
+  useEffect(() => {
+    if (!showCompare) {
+      setCompareSelectionTarget(null);
+      return;
+    }
+    const available = filteredFields.slice(0, 2).map((field) => field.id);
+    setCompareFieldIds((prev) => [
+      prev[0] ?? available[0] ?? null,
+      prev[1] ?? available[1] ?? null,
+    ]);
+  }, [filteredFields, showCompare]);
+
+  const handleCompareSelect = (slotIndex: 0 | 1, value: string) => {
+    const numeric = Number(value) || null;
+    setCompareFieldIds((prev) => {
+      const next: [number | null, number | null] = [...prev];
+      next[slotIndex] = numeric;
+      return next;
+    });
+  };
+
+  const comparedFields: (SoccerField | null)[] = compareFieldIds.map((id) =>
+    id ? filteredFields.find((field) => field.id === id) ?? null : null
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
@@ -521,13 +572,25 @@ function FieldFinderPage() {
                   </span>
                 </button>
               )}
-              <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl border border-emerald-200/50 shadow-sm">
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm font-semibold text-emerald-700">
-                    {visibleFieldCount} terrains trouvés
-                  </span>
+              <div className="flex items-center gap-3">
+                <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl border border-emerald-200/50 shadow-sm">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-semibold text-emerald-700">
+                      {visibleFieldCount} terrains trouvés
+                    </span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCompare((prev) => !prev)}
+                  className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold border border-emerald-300 text-emerald-700 bg-white/90 backdrop-blur-sm hover:bg-emerald-50 transition-colors shadow-sm"
+                >
+                  Session choix
+                  <span className="text-xs text-emerald-500">
+                    comparer 2 terrains
+                  </span>
+                </button>
               </div>
             </div>
           </div>
@@ -535,12 +598,94 @@ function FieldFinderPage() {
       </div>
 
       <div ref={mapSectionRef} className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 space-y-12">
+        {showCompare && (
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-6 sm:p-8">
+            <div ref={compareSectionRef} className="h-0 w-0" aria-hidden="true" />
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-500">
+                  Session choix
+                </p>
+                <h3 className="text-xl font-bold text-emerald-800">
+                  Comparez deux terrains côte à côte
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCompare(false)}
+                className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 px-4 py-2 rounded-xl border border-emerald-200 hover:bg-emerald-50 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[0, 1].map((slot) => (
+                  <div key={slot} className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={compareFieldIds[slot] ?? ""}
+                      onChange={(event) =>
+                        handleCompareSelect(slot as 0 | 1, event.target.value)
+                      }
+                      className="w-full rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                    >
+                      <option value="">Choisir un terrain</option>
+                      {filteredFields.map((field) => (
+                        <option key={field.id} value={field.id}>
+                          {field.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCompareSelectionTarget(slot as 0 | 1);
+                        setViewMode("map");
+                        requestAnimationFrame(() => {
+                          mapCanvasRef.current?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+                        });
+                      }}
+                      className={`shrink-0 px-3 py-3 rounded-2xl border text-sm font-semibold transition-colors flex items-center justify-center gap-1 ${
+                        compareSelectionTarget === slot
+                          ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-200"
+                          : "bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      }`}
+                      aria-label="Choisir sur la carte"
+                    >
+                      <MapPin className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {comparedFields[slot] ? (
+                    <FieldCard
+                      field={comparedFields[slot]!}
+                      onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
+                      isFavorite={favorites.includes(comparedFields[slot]!.id)}
+                      disableFavorite={favoritePendingIds.includes(comparedFields[slot]!.id)}
+                    />
+                  ) : (
+                    <div className="h-full min-h-[220px] rounded-2xl border border-dashed border-emerald-200/70 bg-emerald-50/50 flex items-center justify-center text-emerald-600 text-sm font-semibold">
+                      Sélectionnez un terrain à comparer
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           {viewMode === 'map' ? (
             <div className="flex flex-col lg:flex-row gap-8">
               <div className="flex-1 w-full">
                 <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/50 overflow-hidden">
-                  <div className="h-[420px] md:h-[560px] lg:h-[650px] relative">
+                  <div
+                    ref={mapCanvasRef}
+                    className="h-[420px] md:h-[560px] lg:h-[650px] relative"
+                  >
                     <div className="absolute top-4 left-4 z-10">
                       <div className="bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl border border-emerald-200/50 shadow-sm">
                         <span className="text-xs font-semibold text-emerald-700">Interactive Map</span>
