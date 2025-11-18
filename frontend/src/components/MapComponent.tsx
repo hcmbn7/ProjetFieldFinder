@@ -13,10 +13,16 @@ interface MapComponentProps {
   fields: SoccerField[];
   onFieldClick: (field: SoccerField) => void;
   selectedField?: SoccerField;
+  favoriteIds?: number[];
 }
 
 
-const MapComponent: React.FC<MapComponentProps> = ({ fields, onFieldClick, selectedField }) => {
+const MapComponent: React.FC<MapComponentProps> = ({
+  fields,
+  onFieldClick,
+  selectedField,
+  favoriteIds = [],
+}) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const markersRef = useRef<Array<{ marker: L.Marker, field: SoccerField }>>([]);
@@ -71,10 +77,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ fields, onFieldClick, selec
 
       if (!lat || !lng) return;
 
+      const isFavorite = favoriteIds.includes(field.id);
       const icon = L.divIcon({
         html: `
-          <div class="soccer-field-marker ${selectedField?.id === field.id ? 'selected' : ''}">
-            <div class="marker-icon">⚽</div>
+          <div class="soccer-field-marker ${selectedField?.id === field.id ? 'selected' : ''} ${isFavorite ? 'favorite' : ''}">
+            <div class="marker-icon">${isFavorite ? '❤️' : '⚽'}</div>
             <div class="marker-label">${field.name}</div>
           </div>
         `,
@@ -112,7 +119,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ fields, onFieldClick, selec
       mapRef.current.fitBounds(group.getBounds().pad(0.1));
     }
     updatePreviewVisibility();
-  }, [fields, onFieldClick, selectedField, updatePreviewVisibility]);
+  }, [fields, favoriteIds, onFieldClick, selectedField, updatePreviewVisibility]);
 
   useEffect(() => {
     if (!mapRef.current || !selectedField?.coordinates) return;
@@ -158,6 +165,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ fields, onFieldClick, selec
           background: #10b981;
           color: white;
           border-color: #047857;
+        }
+        .soccer-field-marker.favorite {
+          background: #fef2f2;
+          border-color: #ef4444;
+          color: #991b1b;
+          box-shadow: 0 8px 20px rgba(248, 113, 113, 0.25);
+        }
+        .soccer-field-marker.favorite:hover,
+        .soccer-field-marker.favorite.selected {
+          background: #ef4444;
+          color: #fff7ed;
+          border-color: #dc2626;
         }
         .marker-icon {
           font-size: 14px;

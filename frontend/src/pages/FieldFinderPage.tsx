@@ -89,6 +89,7 @@ function FieldFinderPage() {
     currentUser?.favorites ? sanitizeFavoriteIds(currentUser.favorites) : []
   );
   const [favoritePendingIds, setFavoritePendingIds] = useState<number[]>([]);
+  const [showOnlyFavoritesOnMap, setShowOnlyFavoritesOnMap] = useState(false);
   const mapSectionRef = useRef<HTMLDivElement | null>(null);
   const favoritesSectionRef = useRef<HTMLDivElement | null>(null);
 
@@ -300,10 +301,32 @@ function FieldFinderPage() {
     setCurrentUser(null);
     setFavorites([]);
     setFavoritePendingIds([]);
+    setShowOnlyFavoritesOnMap(false);
   };
 
   const userDisplayName =
     currentUser?.full_name?.trim() || currentUser?.email || "";
+
+  const mapFields = useMemo(() => {
+    if (!showOnlyFavoritesOnMap) {
+      return filteredFields;
+    }
+    return filteredFields.filter((field) => favorites.includes(field.id));
+  }, [favorites, filteredFields, showOnlyFavoritesOnMap]);
+
+  useEffect(() => {
+    if (
+      selectedField &&
+      !mapFields.some((field) => field.id === selectedField.id)
+    ) {
+      setSelectedField(null);
+    }
+  }, [mapFields, selectedField]);
+
+  const visibleFieldCount =
+    viewMode === "map" && showOnlyFavoritesOnMap
+      ? mapFields.length
+      : filteredFields.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
@@ -444,11 +467,34 @@ function FieldFinderPage() {
                 onToggle={() => setShowFilters(!showFilters)}
                 onClear={handleClearFilters}
               />
+              {currentUser && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowOnlyFavoritesOnMap((previous) => !previous)
+                  }
+                  className={`flex items-center space-x-2 px-4 py-3 rounded-2xl border transition-all duration-200 shadow-sm ${
+                    showOnlyFavoritesOnMap
+                      ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-200"
+                      : "bg-white/90 backdrop-blur-sm border-emerald-200/50 text-emerald-700 hover:bg-emerald-50/80"
+                  }`}
+                >
+                  <Heart
+                    className="h-5 w-5"
+                    fill={showOnlyFavoritesOnMap ? "currentColor" : "none"}
+                  />
+                  <span className="font-semibold">
+                    {showOnlyFavoritesOnMap
+                      ? "Favoris sur la carte"
+                      : "Afficher favoris"}
+                  </span>
+                </button>
+              )}
               <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl border border-emerald-200/50 shadow-sm">
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
                   <span className="text-sm font-semibold text-emerald-700">
-                    {filteredFields.length} terrains trouvés
+                    {visibleFieldCount} terrains trouvés
                   </span>
                 </div>
               </div>
@@ -470,9 +516,10 @@ function FieldFinderPage() {
                       </div>
                     </div>
                     <MapComponent
-                      fields={filteredFields}
+                      fields={mapFields}
                       onFieldClick={handleFieldClick}
                       selectedField={selectedField ?? undefined}
+                      favoriteIds={favorites}
                     />
                   </div>
                 </div>
