@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart, List, MapPin, Search, Send, Sparkles } from "lucide-react";
+import { Heart, List, MapPin, Search, Send, Sparkles, User as UserIcon, LogOut, PlusCircle, Shield } from "lucide-react";
 import MapComponent from "../components/MapComponent";
 import FieldCard from "../components/FieldCard";
 import SearchBar from "../components/SearchBar";
@@ -457,598 +457,501 @@ function FieldFinderPage() {
       });
   };
 
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50">
-      <div className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-emerald-100">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between h-auto md:h-20 py-6 md:py-0">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center justify-center w-12 h-12 rounded-2xl shadow-lg">
+    <div className="min-h-screen bg-emerald-50 font-sans text-slate-900">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 transition-all duration-300">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 md:h-20">
+            <div className="flex items-center gap-4 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              <div className="relative flex items-center justify-center w-10 h-10 md:w-12 md:h-12 rounded-xl bg-emerald-50 shadow-sm group-hover:shadow-md transition-all duration-300 border border-emerald-100">
                 <img
                   src="/Images/logo_nobackground.png"
                   alt="logo"
-                  className="w-16 h-16 object-cover rounded-2xl"
+                  className="w-8 h-8 md:w-10 md:h-10 object-contain"
                 />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-700 to-green-600 bg-clip-text text-transparent">
+              <div className="flex flex-col">
+                <h1 className="text-xl md:text-2xl font-bold text-emerald-900 tracking-tight group-hover:text-emerald-700 transition-colors">
                   FieldFinder
                 </h1>
-                <p className="text-sm text-emerald-600/80 font-medium">
-                  Découvrez les terrains de soccer dans le Grand Montréal
+                <p className="hidden md:block text-xs text-slate-500 font-medium">
+                  Terrains de sport du Grand Montréal
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] items-start lg:items-center gap-3 w-full">
-              <div className="flex flex-wrap items-center justify-start gap-3 w-full">
-                {showcaseFields.length > 0 && (
-                  <button
+
+            <div className="flex items-center gap-3 md:gap-4">
+              {showcaseFields.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleShowcaseScroll}
+                  className="hidden lg:flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-emerald-700 hover:bg-emerald-50/50 transition-colors"
+                >
+                  <Sparkles className="h-4 w-4 text-amber-400" />
+                  <span>À la une</span>
+                </button>
+              )}
+
+              {currentUser && (
+                 <button
                     type="button"
-                    onClick={handleShowcaseScroll}
-                    className="flex items-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-200 text-emerald-700 bg-white/80 hover:bg-emerald-50 transition-colors justify-center shadow-sm"
-                  >
-                    <Sparkles className="h-4 w-4 text-emerald-500" />
-                    <span>Terrains du moment</span>
-                  </button>
-                )}
-              </div>
+                    onClick={handleShowFavorites}
+                    className="hidden lg:flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50/50 transition-colors"
+                 >
+                    <Heart className="h-4 w-4 text-red-500" />
+                    <span>Mes Favoris</span>
+                 </button>
+              )}
+
+              <div className="h-6 w-px bg-slate-200 hidden lg:block" />
 
               {currentUser ? (
-                <div className="flex flex-wrap items-center justify-start lg:justify-end gap-3 md:gap-4">
-                  <div className="flex items-center gap-3 bg-gradient-to-r from-white to-emerald-50 border border-emerald-200/80 rounded-2xl px-4 py-2 shadow-sm">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white font-bold flex items-center justify-center">
+                <div className="flex items-center gap-3">
+                  <div className="hidden md:flex items-center gap-2 pl-2 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-full">
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center ring-2 ring-white">
                       {userInitials}
                     </div>
-                    <p className="text-sm font-semibold text-emerald-800">
+                    <span className="text-sm font-semibold text-slate-700 truncate max-w-[120px]">
                       {userDisplayName}
-                    </p>
+                    </span>
                   </div>
-                  <Link
-                    to="/profile"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors text-center"
-                  >
-                    Profil
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => setShowSuggestions((prev) => !prev)}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600/70 text-emerald-700 hover:bg-emerald-50 transition-colors"
-                  >
-                    Proposer un terrain
-                  </button>
-                  <button
-                    onClick={handleLogout}
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors"
-                  >
-                    Déconnexion
-                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to="/profile"
+                      className="p-2 md:px-4 md:py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 transition-all flex items-center gap-2"
+                      title="Mon Profil"
+                    >
+                      <UserIcon className="w-4 h-4" />
+                      <span className="hidden md:inline">Profil</span>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setShowSuggestions((prev) => !prev)}
+                      className="p-2 md:px-4 md:py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 transition-all flex items-center gap-2"
+                      title="Proposer un terrain"
+                    >
+                       <PlusCircle className="w-4 h-4" />
+                       <span className="hidden md:inline">Proposer</span>
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      title="Déconnexion"
+                    >
+                      <LogOut className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               ) : (
-                <div className="flex flex-wrap items-center justify-end md:justify-start gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                   <Link
                     to="/login"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors text-center"
+                    className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-emerald-700 hover:bg-slate-50 transition-colors"
                   >
                     Connexion
                   </Link>
                   <Link
                     to="/signup"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-600 text-emerald-700 hover:bg-emerald-50 transition-colors text-center"
+                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 hover:shadow-md transition-all"
                   >
                     Inscription
                   </Link>
                   <Link
                     to="/admin"
-                    className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-emerald-300 text-emerald-700 hover:bg-emerald-50 transition-colors text-center"
+                     className="hidden sm:inline-flex p-2 rounded-lg text-slate-400 hover:text-emerald-600 transition-colors"
+                     title="Accès Admin"
                   >
-                    Admin
+                    <Shield className="w-4 h-4" />
                   </Link>
                 </div>
               )}
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="bg-gradient-to-r from-emerald-500/5 via-green-500/5 to-teal-500/5 border-b border-emerald-100/50">
-        <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8">
-          <div className="space-y-4">
-            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
-              <div className="flex flex-wrap items-center gap-4 w-full">
-                <button
-                  type="button"
-                  onClick={() => setShowCompare((prev) => !prev)}
-                  className={`inline-flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold border transition-colors shadow-sm ${
-                    showCompare
-                      ? "border-emerald-600 bg-emerald-500 text-white shadow-emerald-200"
-                      : "border-emerald-300 text-emerald-700 bg-white/90 backdrop-blur-sm hover:bg-emerald-50"
-                  }`}
-                >
-                  Session choix
-                  <span className="text-xs text-emerald-500">
-                    comparer 2 terrains
-                  </span>
-                </button>
-                <div className="ml-auto flex items-center gap-4">
-                  <FilterPanel
+      <div className="relative z-40 py-4 px-4 sm:px-6 lg:px-8 pointer-events-none">
+        <div className="max-w-7xl mx-auto">
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-lg border border-slate-200/60 p-2 pointer-events-auto flex flex-col lg:flex-row gap-3 items-center">
+             <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-start">
+                <FilterPanel
                     filters={filters}
                     onFilterChange={setFilters}
                     isOpen={showFilters}
                     onToggle={() => setShowFilters(!showFilters)}
                     onClear={handleClearFilters}
-                  />
-                  <div className="flex items-center gap-3">
-                    <div className="bg-white/90 backdrop-blur-sm px-4 py-3 rounded-2xl border border-emerald-200/50 shadow-sm">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                        <span className="text-sm font-semibold text-emerald-700">
-                          {visibleFieldCount} terrains trouvés
-                        </span>
-                      </div>
-                    </div>
-                    {currentUser && (
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setShowOnlyFavoritesOnMap((previous) => !previous)
-                          }
-                          className={`flex items-center space-x-2 px-4 py-3 rounded-2xl border transition-all duration-200 shadow-sm ${
-                            showOnlyFavoritesOnMap
-                              ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-200"
-                              : "bg-white/90 backdrop-blur-sm border-emerald-200/50 text-emerald-700 hover:bg-emerald-50/80"
-                          }`}
-                        >
-                          <Heart
-                            className="h-5 w-5"
-                            fill={showOnlyFavoritesOnMap ? "currentColor" : "none"}
-                          />
-                          <span className="font-semibold">
-                            {showOnlyFavoritesOnMap
-                              ? "Favoris sur la carte"
-                              : "Afficher favoris"}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleShowFavorites}
-                          className="flex items-center space-x-2 px-4 py-3 rounded-2xl border border-emerald-200/60 bg-white/90 backdrop-blur-sm text-emerald-700 hover:bg-emerald-50 shadow-sm"
-                        >
-                          <Heart
-                            className="h-5 w-5"
-                            strokeWidth={favoriteFields.length > 0 ? 2.5 : 2}
-                            fill={favoriteFields.length > 0 ? "currentColor" : "none"}
-                          />
-                          <span className="font-semibold">Favoris</span>
-                          {favoriteFields.length > 0 && (
-                            <span className="inline-flex items-center justify-center min-w-[1.5rem] px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white">
-                              {favoriteFields.length}
-                            </span>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-col lg:flex-row gap-3 lg:items-center">
-              <div className="flex items-center bg-emerald-50/80 rounded-2xl p-1.5 border border-emerald-200/50 w-full lg:w-auto">
+                />
                 <button
-                  onClick={() => setViewMode("map")}
-                  className={`flex flex-1 items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                    viewMode === "map"
-                      ? "bg-white text-emerald-700 shadow-md border border-emerald-200"
-                      : "text-emerald-600/70 hover:text-emerald-700 hover:bg-white/50"
+                  type="button"
+                  onClick={() => setShowCompare((prev) => !prev)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+                    showCompare
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-transparent text-slate-600 hover:bg-slate-50"
                   }`}
                 >
-                  <MapPin className="h-4 w-4" />
-                  <span>Carte</span>
+                  <List className="w-4 h-4" />
+                  <span>Comparer</span>
                 </button>
-                <button
-                  onClick={() => setViewMode("list")}
-                  className={`flex flex-1 items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                    viewMode === "list"
-                      ? "bg-white text-emerald-700 shadow-md border border-emerald-200"
-                      : "text-emerald-600/70 hover:text-emerald-700 hover:bg-white/50"
-                  }`}
-                >
-                  <List className="h-4 w-4" />
-                  <span>Liste</span>
-                </button>
-              </div>
-              <div className="relative flex-1">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Search className="h-5 w-5 text-emerald-500" />
+             </div>
+
+             <div className="w-px h-8 bg-slate-200 hidden lg:block" />
+
+             <div className="relative flex-1 w-full">
+                <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-slate-400" />
                 </div>
                 <SearchBar
                   searchTerm={searchTerm}
                   onSearchChange={setSearchTerm}
                   onClear={handleClearSearch}
                 />
-              </div>
-            </div>
+             </div>
+
+             <div className="w-px h-8 bg-slate-200 hidden lg:block" />
+
+             <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
+                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                   <button
+                      onClick={() => setViewMode("map")}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                         viewMode === "map"
+                            ? "bg-white text-emerald-700 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                      }`}
+                   >
+                      <MapPin className="w-4 h-4" />
+                      <span className="hidden sm:inline">Carte</span>
+                   </button>
+                   <button
+                      onClick={() => setViewMode("list")}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                         viewMode === "list"
+                            ? "bg-white text-emerald-700 shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                      }`}
+                   >
+                      <List className="w-4 h-4" />
+                      <span className="hidden sm:inline">Liste</span>
+                   </button>
+                </div>
+
+                {currentUser && (
+                   <div className="flex items-center gap-2">
+                     <button
+                        onClick={() => setShowOnlyFavoritesOnMap(prev => !prev)}
+                        className={`p-2.5 rounded-xl border transition-colors ${
+                           showOnlyFavoritesOnMap
+                              ? "bg-red-50 border-red-200 text-red-600"
+                              : "bg-white border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200"
+                        }`}
+                        title={showOnlyFavoritesOnMap ? "Afficher tous" : "Afficher favoris uniquement"}
+                     >
+                        <Heart className="w-5 h-5" fill={showOnlyFavoritesOnMap ? "currentColor" : "none"} />
+                     </button>
+                   </div>
+                )}
+             </div>
+          </div>
+          <div className="mt-2 px-2 flex justify-end">
+               <span className="text-xs font-medium text-slate-500 bg-white/80 backdrop-blur px-2 py-1 rounded-full shadow-sm border border-slate-100">
+                  {visibleFieldCount} terrain{visibleFieldCount !== 1 ? 's' : ''} trouvé{visibleFieldCount !== 1 ? 's' : ''}
+               </span>
           </div>
         </div>
       </div>
 
-      <div ref={mapSectionRef} className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-8 space-y-12">
+      <main ref={mapSectionRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-12">
         {showCompare && (
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-6 sm:p-8">
-            <div ref={compareSectionRef} className="h-0 w-0" aria-hidden="true" />
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-500">
-                  Session choix
-                </p>
-                <h3 className="text-xl font-bold text-emerald-800">
-                  Comparez deux terrains côte à côte
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCompare(false)}
-                className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 px-4 py-2 rounded-xl border border-emerald-200 hover:bg-emerald-50 transition-colors"
-              >
-                Fermer
-              </button>
-            </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[0, 1].map((slot) => (
-                  <div key={slot} className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <select
-                      value={compareFieldIds[slot] ?? ""}
-                      onChange={(event) =>
-                        handleCompareSelect(slot as 0 | 1, event.target.value)
-                      }
-                      className="w-full rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-                    >
-                      <option value="">Choisir un terrain</option>
-                      {filteredFields.map((field) => (
-                        <option key={field.id} value={field.id}>
-                          {field.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCompareSelectionTarget(slot as 0 | 1);
-                        setViewMode("map");
-                        requestAnimationFrame(() => {
-                          mapCanvasRef.current?.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
-                          });
-                        });
-                      }}
-                      className={`shrink-0 px-3 py-3 rounded-2xl border text-sm font-semibold transition-colors flex items-center justify-center gap-1 ${
-                        compareSelectionTarget === slot
-                          ? "bg-emerald-500 text-white border-emerald-600 shadow-emerald-200"
-                          : "bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                      }`}
-                      aria-label="Choisir sur la carte"
-                    >
-                      <MapPin className="w-4 h-4" />
-                    </button>
+          <section className="animate-in slide-in-from-top-4 duration-300">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+               <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                  <div>
+                     <h3 className="text-lg font-bold text-slate-800">Comparateur</h3>
+                     <p className="text-sm text-slate-500">Sélectionnez deux terrains pour comparer leurs caractéristiques.</p>
                   </div>
-                  {comparedFields[slot] ? (
-                    <FieldCard
-                      field={comparedFields[slot]!}
-                      onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
-                      isFavorite={favorites.includes(comparedFields[slot]!.id)}
-                      disableFavorite={favoritePendingIds.includes(comparedFields[slot]!.id)}
-                    />
-                  ) : (
-                    <div className="h-full min-h-[220px] rounded-2xl border border-dashed border-emerald-200/70 bg-emerald-50/50 flex items-center justify-center text-emerald-600 text-sm font-semibold">
-                      Sélectionnez un terrain à comparer
-                    </div>
-                  )}
-                </div>
-              ))}
+                  <button onClick={() => setShowCompare(false)} className="text-sm text-slate-500 hover:text-slate-700 font-medium">Fermer</button>
+               </div>
+               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8" ref={compareSectionRef}>
+                  {[0, 1].map((slot) => (
+                     <div key={slot} className="flex flex-col gap-4">
+                        <div className="flex gap-2">
+                           <select
+                              value={compareFieldIds[slot] ?? ""}
+                              onChange={(e) => handleCompareSelect(slot as 0 | 1, e.target.value)}
+                              className="flex-1 rounded-xl border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-emerald-500 focus:ring-emerald-500"
+                           >
+                              <option value="">Sélectionner un terrain...</option>
+                              {filteredFields.map((f) => (
+                                 <option key={f.id} value={f.id}>{f.name}</option>
+                              ))}
+                           </select>
+                           <button
+                              onClick={() => {
+                                 setCompareSelectionTarget(slot as 0 | 1);
+                                 setViewMode("map");
+                                 mapCanvasRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }}
+                              className={`px-3 rounded-xl border ${compareSelectionTarget === slot ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}
+                           >
+                              <MapPin className="w-4 h-4" />
+                           </button>
+                        </div>
+                        {comparedFields[slot] ? (
+                           <FieldCard
+                              field={comparedFields[slot]!}
+                              onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
+                              isFavorite={favorites.includes(comparedFields[slot]!.id)}
+                              disableFavorite={favoritePendingIds.includes(comparedFields[slot]!.id)}
+                           />
+                        ) : (
+                           <div className="h-64 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 bg-slate-50/50">
+                              <List className="w-8 h-8 mb-2 opacity-50" />
+                              <span className="text-sm font-medium">Emplacement vide</span>
+                           </div>
+                        )}
+                     </div>
+                  ))}
+               </div>
             </div>
-          </div>
+          </section>
         )}
 
         {showSuggestions && (
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-6 sm:p-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-500">
-                Suggestion
-              </p>
-              <h3 className="text-xl font-bold text-emerald-800">
-                Proposez un nouveau terrain
-              </h3>
-              <p className="text-sm text-emerald-600/80">
-                Partagez un terrain manquant pour que les administrateurs puissent le publier.
-              </p>
-            </div>
-            {suggestionMessage && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-sm text-emerald-800 shadow-sm">
-                {suggestionMessage}
+           <section className="animate-in fade-in zoom-in-95 duration-300">
+              <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl shadow-xl overflow-hidden text-white p-8">
+                 <div className="flex flex-col md:flex-row gap-8">
+                    <div className="md:w-1/3 space-y-4">
+                       <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+                          <Send className="w-6 h-6" />
+                       </div>
+                       <h3 className="text-2xl font-bold">Proposez un terrain</h3>
+                       <p className="text-emerald-100 leading-relaxed">
+                          Vous connaissez un terrain qui n'est pas sur la carte ? Aidez la communauté en partageant ses informations.
+                       </p>
+                    </div>
+                    <div className="md:w-2/3 bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/10">
+                        {suggestionMessage ? (
+                           <div className="h-full flex items-center justify-center text-center p-8">
+                              <p className="text-lg font-semibold">{suggestionMessage}</p>
+                           </div>
+                        ) : (
+                           <form onSubmit={handleSubmitSuggestion} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <input
+                                 value={suggestionForm.name}
+                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, name: e.target.value })}
+                                 placeholder="Nom du terrain *"
+                                 className="bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
+                              />
+                              <input
+                                 value={suggestionForm.address}
+                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, address: e.target.value })}
+                                 placeholder="Adresse *"
+                                 className="bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
+                              />
+                              <input
+                                 value={suggestionForm.latitude}
+                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, latitude: e.target.value })}
+                                 placeholder="Latitude"
+                                 className="bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
+                              />
+                              <input
+                                 value={suggestionForm.longitude}
+                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, longitude: e.target.value })}
+                                 placeholder="Longitude"
+                                 className="bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
+                              />
+                              <textarea
+                                 value={suggestionForm.description}
+                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, description: e.target.value })}
+                                 placeholder="Description..."
+                                 rows={3}
+                                 className="sm:col-span-2 bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
+                              />
+                              <input
+                                 value={suggestionForm.contact}
+                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, contact: e.target.value })}
+                                 placeholder="Contact (courriel/téléphone)"
+                                 className="sm:col-span-2 bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
+                              />
+                              <div className="sm:col-span-2 flex justify-end">
+                                 <button type="submit" className="px-6 py-2 bg-white text-emerald-700 font-bold rounded-lg hover:bg-emerald-50 transition-colors">
+                                    Envoyer
+                                 </button>
+                              </div>
+                           </form>
+                        )}
+                    </div>
+                 </div>
               </div>
-            )}
-          </div>
-
-          <form onSubmit={handleSubmitSuggestion} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              value={suggestionForm.name}
-              onChange={(e) => setSuggestionForm({ ...suggestionForm, name: e.target.value })}
-              placeholder="Nom du terrain *"
-              className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            />
-            <input
-              value={suggestionForm.address}
-              onChange={(e) => setSuggestionForm({ ...suggestionForm, address: e.target.value })}
-              placeholder="Adresse *"
-              className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            />
-            <input
-              value={suggestionForm.latitude}
-              onChange={(e) => setSuggestionForm({ ...suggestionForm, latitude: e.target.value })}
-              placeholder="Latitude (optionnel)"
-              className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            />
-            <input
-              value={suggestionForm.longitude}
-              onChange={(e) => setSuggestionForm({ ...suggestionForm, longitude: e.target.value })}
-              placeholder="Longitude (optionnel)"
-              className="rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            />
-            <textarea
-              value={suggestionForm.description}
-              onChange={(e) => setSuggestionForm({ ...suggestionForm, description: e.target.value })}
-              placeholder="Description (surface, éclairage, etc.)"
-              className="md:col-span-2 rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200 min-h-[90px]"
-            />
-            <input
-              value={suggestionForm.contact}
-              onChange={(e) => setSuggestionForm({ ...suggestionForm, contact: e.target.value })}
-              placeholder="Votre courriel ou téléphone (optionnel)"
-              className="md:col-span-2 rounded-2xl border border-emerald-200/70 bg-white px-4 py-3 text-emerald-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            />
-            <div className="md:col-span-2 flex justify-end">
-              <button
-                type="submit"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors"
-              >
-                <Send className="w-4 h-4" />
-                Envoyer la suggestion
-              </button>
-            </div>
-          </form>
-          </div>
+           </section>
         )}
 
-        <div>
-          {viewMode === 'map' ? (
-            <div className="flex flex-col lg:flex-row gap-8">
-              <div className="flex-1 w-full">
-                <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/50 overflow-hidden">
-                    <div
-                    ref={mapCanvasRef}
-                    className="h-[420px] md:h-[560px] lg:h-[650px] relative"
-                  >
-                    <div className="absolute top-4 left-4 z-10">
-                      <div className="bg-white/95 backdrop-blur-sm px-3 py-2 rounded-xl border border-emerald-200/50 shadow-sm">
-                        <span className="text-xs font-semibold text-emerald-700">Interactive Map</span>
-                      </div>
-                    </div>
-                    {showcaseFields.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleShowcaseScroll}
-                        className="absolute top-4 right-4 z-40 inline-flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-semibold bg-white/95 text-emerald-700 border border-emerald-100 shadow-[0_10px_25px_rgba(16,185,129,0.25)] hover:bg-white transition-colors"
-                      >
-                        <Sparkles className="h-4 w-4 text-emerald-500" />
-                        Terrains du moment
-                      </button>
-                    )}
-                    <MapComponent
-                      fields={mapFields}
-                      onFieldClick={handleFieldClick}
-                      selectedField={selectedField ?? undefined}
-                      favoriteIds={favorites}
-                    />
+        <section>
+            {viewMode === 'map' ? (
+               <div className="flex flex-col lg:flex-row gap-6 items-start">
+                  <div className="flex-1 w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative group">
+                     <div ref={mapCanvasRef} className="h-[500px] lg:h-[700px] w-full bg-slate-100 relative z-0">
+                        <MapComponent
+                           fields={mapFields}
+                           onFieldClick={handleFieldClick}
+                           selectedField={selectedField ?? undefined}
+                           favoriteIds={favorites}
+                        />
+                     </div>
+                     {showcaseFields.length > 0 && (
+                       <button
+                         onClick={handleShowcaseScroll}
+                         className="absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur text-xs font-bold text-emerald-700 px-3 py-1.5 rounded-lg shadow-sm border border-emerald-100 hover:bg-white transition-all flex items-center gap-1"
+                       >
+                         <Sparkles className="w-3 h-3" /> A la une
+                       </button>
+                     )}
                   </div>
-                </div>
-              </div>
 
-              {selectedField && (
-                <div className="w-full lg:w-96 flex-shrink-0">
-                  <div className="sticky top-4 lg:top-8">
-                    <FieldCard
-                      field={selectedField}
-                      onClose={handleCloseCard}
-                      onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
-                      isFavorite={favorites.includes(selectedField.id)}
-                      disableFavorite={favoritePendingIds.includes(selectedField.id)}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex-1 w-full">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredFields.map(field => (
-                  <div key={field.id} className="cursor-pointer transform hover:scale-105 transition-all duration-200">
-                    <FieldCard
-                      field={field}
-                      onClose={() => { }}
-                      onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
-                      isFavorite={favorites.includes(field.id)}
-                      disableFavorite={favoritePendingIds.includes(field.id)}
-                    />
-                  </div>
-                ))}
-              </div>
-              {filteredFields.length === 0 && (
-                <div className="text-center py-16">
-                  <div className="text-emerald-300 text-8xl mb-6">⚽</div>
-                  <h3 className="text-2xl font-bold text-emerald-700 mb-3">Aucun terrain trouvé</h3>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                  {selectedField && (
+                     <div className="w-full lg:w-[400px] flex-shrink-0 lg:sticky lg:top-40 animate-in slide-in-from-right-8 duration-300 z-10">
+                        <FieldCard
+                           field={selectedField}
+                           onClose={handleCloseCard}
+                           onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
+                           isFavorite={favorites.includes(selectedField.id)}
+                           disableFavorite={favoritePendingIds.includes(selectedField.id)}
+                        />
+                     </div>
+                  )}
+               </div>
+            ) : (
+               // Grid View
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredFields.length > 0 ? (
+                     filteredFields.map(field => (
+                        <div key={field.id} className="h-full">
+                           <FieldCard
+                              field={field}
+                              onClose={() => {}}
+                              onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
+                              isFavorite={favorites.includes(field.id)}
+                              disableFavorite={favoritePendingIds.includes(field.id)}
+                           />
+                        </div>
+                     ))
+                  ) : (
+                     <div className="col-span-full flex flex-col items-center justify-center py-24 text-slate-400 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                        <MapPin className="w-12 h-12 mb-4 text-emerald-200" />
+                        <h3 className="text-lg font-semibold text-slate-600">Aucun terrain trouvé</h3>
+                        <p>Essayez de modifier vos filtres ou votre recherche.</p>
+                        <button onClick={handleClearFilters} className="mt-4 text-emerald-600 font-medium hover:underline">
+                           Réinitialiser les filtres
+                        </button>
+                     </div>
+                  )}
+               </div>
+            )}
+        </section>
 
         {currentUser && (
-          <div
-            ref={favoritesSectionRef}
-            className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-6 sm:p-10"
-          >
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-emerald-500 font-semibold mb-2">
-                  Vos favoris
-                </p>
-                <h2 className="text-3xl font-bold text-emerald-800">
-                  Terrains sauvegardés
-                </h2>
-                <p className="text-sm text-emerald-600/80 mt-2 max-w-xl">
-                  Accédez rapidement aux terrains que vous aimez le plus. Retirez-les à tout moment grâce au bouton coeur.
-                </p>
-              </div>
-              <div className="hidden lg:flex items-center space-x-2 text-emerald-600 bg-emerald-50/80 px-4 py-2 rounded-full border border-emerald-100">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-semibold">
-                  {favoriteFields.length > 0
-                    ? `${favoriteFields.length} terrain${favoriteFields.length > 1 ? "s" : ""} sauvegardé${favoriteFields.length > 1 ? "s" : ""}`
-                    : "Aucun favori pour l'instant"}
-                </span>
-              </div>
-            </div>
-
-            {favoriteFields.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {favoriteFields.map((field) => (
-                  <div
-                    key={field.id}
-                    className="cursor-pointer transform hover:scale-[1.01] transition-all duration-200"
-                    onClick={() => {
-                      handleFieldClick(field);
-                      mapSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}
-                  >
-                    <FieldCard
-                      field={field}
-                      onToggleFavorite={handleToggleFavorite}
-                      isFavorite={favorites.includes(field.id)}
-                      disableFavorite={favoritePendingIds.includes(field.id)}
-                    />
+           <section ref={favoritesSectionRef} className="space-y-6 pt-8 border-t border-slate-200">
+               <div className="flex items-center justify-between">
+                  <div>
+                     <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <Heart className="w-6 h-6 text-red-500 fill-red-500" />
+                        Vos favoris
+                     </h2>
+                     <p className="text-slate-500 mt-1">Retrouvez vos terrains préférés en un clic.</p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 rounded-2xl border border-dashed border-emerald-200/60 bg-emerald-50/40">
-                <div className="text-emerald-300 text-6xl mb-4">♡</div>
-                <h3 className="text-xl font-bold text-emerald-700 mb-2">
-                  Aucun favori pour l'instant
-                </h3>
-                <p className="text-sm text-emerald-600/80 mb-4 max-w-md mx-auto">
-                  Explorez la carte ou la liste puis ajoutez des terrains à vos favoris en cliquant sur le coeur.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setViewMode("map");
-                    mapSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold bg-emerald-600 text-white shadow-md hover:bg-emerald-700 transition-colors"
-                >
-                  Explorer la carte
-                </button>
-              </div>
-            )}
-          </div>
+                  <span className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-sm font-bold">
+                     {favoriteFields.length}
+                  </span>
+               </div>
+               
+               {favoriteFields.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                     {favoriteFields.map((field) => (
+                        <div key={field.id} onClick={() => handleFieldClick(field)} className="cursor-pointer">
+                           <FieldCard
+                              field={field}
+                              onToggleFavorite={handleToggleFavorite}
+                              isFavorite={true}
+                              disableFavorite={favoritePendingIds.includes(field.id)}
+                           />
+                        </div>
+                     ))}
+                  </div>
+               ) : (
+                  <div className="bg-white border border-slate-200 rounded-xl p-8 text-center">
+                     <p className="text-slate-500">Vous n'avez pas encore de favoris.</p>
+                     <button 
+                        onClick={() => mapSectionRef.current?.scrollIntoView({ behavior: 'smooth' })}
+                        className="mt-2 text-emerald-600 font-medium hover:underline"
+                     >
+                        Parcourir la carte
+                     </button>
+                  </div>
+               )}
+           </section>
         )}
 
         {showcaseFields.length > 0 && (
-          <div
-            ref={showcaseSectionRef}
-            className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl border border-emerald-100/60 p-6 sm:p-10"
-          >
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-8">
-              <div>
-                <p className="text-sm uppercase tracking-[0.3em] text-emerald-500 font-semibold mb-2">
-                  Sélection spéciale
-                </p>
-                <h2 className="text-3xl font-bold text-emerald-800">
-                  Top Terrains du moment
-                </h2>
-                <p className="text-sm text-emerald-600/80 mt-2 max-w-xl">
-                  Trois terrains coups de coeur à découvrir ce mois-ci.
-                </p>
-              </div>
-              <div className="hidden lg:flex items-center space-x-2 text-emerald-600 bg-emerald-50/80 px-4 py-2 rounded-full border border-emerald-100">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-sm font-semibold">
-                  Mises à jour chaque mois.
-                </span>
-              </div>
-            </div>
+           <section ref={showcaseSectionRef} className="space-y-6 pt-8 border-t border-slate-200 pb-12">
+               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  <div>
+                     <span className="text-emerald-600 font-bold tracking-wider text-xs uppercase mb-1 block">Sélection du mois</span>
+                     <h2 className="text-2xl font-bold text-slate-800">Terrains à la une</h2>
+                  </div>
+                  <Link to="/signup" className="text-sm font-medium text-slate-500 hover:text-emerald-600 transition-colors flex items-center gap-1">
+                     Voir tous les terrains <span aria-hidden="true">→</span>
+                  </Link>
+               </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {showcaseFields.map((field) => {
-                const coverPhoto = field.photos?.[0] ?? "/Images/placeholder.jpeg";
-                return (
-                  <button
-                    key={field.id}
-                    type="button"
-                    onClick={() => handleShowcaseClick(field)}
-                    className="group w-full text-left bg-white rounded-2xl border border-emerald-100/60 overflow-hidden shadow-sm hover:shadow-emerald-100/60 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-50"
-                  >
-                    <div className="relative h-52 overflow-hidden">
-                      <img
-                        src={coverPhoto}
-                        alt={field.name}
-                        className="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
-                      />
-                      <div className="absolute top-4 left-4 bg-emerald-600/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-md">
-                        Coup de coeur
-                      </div>
-                    </div>
-                    <div className="p-5 space-y-4">
-                      <div>
-                        <h3 className="text-xl font-bold text-emerald-800 mb-1">
-                          {field.name}
-                        </h3>
-                        <p className="text-sm text-emerald-600 flex items-center">
-                          <MapPin className="w-4 h-4 mr-2 text-emerald-500" />
-                          {field.borough || field.address}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl font-semibold">
-                          Format&nbsp;
-                          <span className="font-normal text-emerald-600">
-                            {field.format || "—"}
-                          </span>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {showcaseFields.map((field) => (
+                     <button
+                        key={field.id}
+                        onClick={() => handleShowcaseClick(field)}
+                        className="group text-left bg-white rounded-2xl overflow-hidden border border-slate-200 hover:border-emerald-300 hover:shadow-lg hover:shadow-emerald-500/10 transition-all duration-300"
+                     >
+                        <div className="relative h-48 overflow-hidden">
+                           <img 
+                              src={field.photos?.[0] || "/Images/placeholder.jpeg"} 
+                              alt={field.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                           />
+                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-80 group-hover:opacity-70 transition-opacity" />
+                           <div className="absolute bottom-4 left-4 text-white">
+                              <h3 className="font-bold text-lg leading-tight">{field.name}</h3>
+                              <p className="text-sm text-slate-200 flex items-center gap-1 mt-1">
+                                 <MapPin className="w-3 h-3" /> {field.borough || 'Montréal'}
+                              </p>
+                           </div>
+                           <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md border border-white/30 text-white text-xs font-bold px-2 py-1 rounded-lg">
+                              {field.format || 'Standard'}
+                           </div>
                         </div>
-                        <div className="bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl font-semibold">
-                          Surface&nbsp;
-                          <span className="font-normal text-emerald-600">
-                            {field.surface_type || "—"}
-                          </span>
+                        <div className="p-4">
+                           <p className="text-sm text-slate-600 line-clamp-2 mb-3">{field.description || "Aucune description disponible pour ce terrain."}</p>
+                           <div className="flex items-center gap-2 text-xs font-medium text-emerald-700">
+                              <span className="px-2 py-1 bg-emerald-50 rounded-md">{field.surface_type || "Surface inconnue"}</span>
+                              {field.lighting && <span className="px-2 py-1 bg-amber-50 text-amber-700 rounded-md">Éclairé</span>}
+                           </div>
                         </div>
-                      </div>
-                      {field.description && (
-                        <p className="text-sm text-emerald-600/80 leading-relaxed">
-                          {field.description}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                     </button>
+                  ))}
+               </div>
+           </section>
         )}
-      </div>
+      </main>
+
+      <footer className="bg-white border-t border-slate-200 py-12 mt-12">
+         <div className="max-w-7xl mx-auto px-4 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-emerald-50 mb-6">
+               <img src="/Images/logo_nobackground.png" alt="logo" className="w-8 h-8 object-contain" />
+            </div>
+            <p className="text-slate-500 text-sm">© 2025 FieldFinder.</p>
+         </div>
+      </footer>
     </div>
   );
 }
