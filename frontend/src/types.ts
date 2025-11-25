@@ -56,3 +56,19 @@ export interface FieldSuggestion {
   status?: string;
   published_field_id?: number | null;
 }
+
+export interface Review {
+  id: number;
+  user_id: number;
+  field_id: number;
+  rating: number;
+  comment?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  user_name?: string | null;
+}
+
+export interface ReviewCreate {
+  rating: number;
+  comment?: string | null;
+}

@@ -92,7 +92,7 @@ const FieldCard: React.FC<FieldCardProps> = ({
           </span>
         </div>
 
-        {field.rating && (
+        {field.rating !== undefined && field.rating !== null && (
           <div className="flex items-center space-x-2">
             <Star className="h-4 w-4 text-yellow-500" />
             <span className="text-sm text-emerald-700 font-medium">

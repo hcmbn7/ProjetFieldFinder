@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart, List, MapPin, Search, Send, Sparkles, User as UserIcon, LogOut, PlusCircle, Shield } from "lucide-react";
+import { Heart, List, MapPin, Search, Send, Sparkles, Star, Trash2, User as UserIcon, LogOut, PlusCircle, Shield } from "lucide-react";
 import MapComponent from "../components/MapComponent";
 import FieldCard from "../components/FieldCard";
 import SearchBar from "../components/SearchBar";
@@ -11,8 +11,13 @@ import {
   fetchUserFavorites,
   removeUserFavorite,
 } from "../api/users";
+import {
+  deleteReview as deleteReviewApi,
+  fetchReviews,
+  upsertReview,
+} from "../api/reviews";
 import { submitSuggestion } from "../api/suggestions";
-import type { MapFilters, SoccerField, User } from "../types";
+import type { MapFilters, Review, SoccerField, User } from "../types";
 import { filterFields } from "../utils";
 
 const USER_STORAGE_KEY = "fieldfinderUser";
@@ -112,6 +117,58 @@ function FieldFinderPage() {
     contact: "",
   });
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(null);
+  const [fieldReviews, setFieldReviews] = useState<Review[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewForm, setReviewForm] = useState<{ rating: number; comment: string }>({
+    rating: 0,
+    comment: "",
+  });
+
+  const applyReviewAggregates = useCallback(
+    (fieldId: number, reviews: Review[]) => {
+      const total = reviews.length;
+      const average = total
+        ? Number(
+            (
+              reviews.reduce((sum, review) => sum + (review.rating || 0), 0) /
+              total
+            ).toFixed(2)
+          )
+        : undefined;
+
+      setFields((prev) =>
+        prev.map((field) =>
+          field.id === fieldId
+            ? {
+                ...field,
+                rating: average,
+                reviews: total,
+              }
+            : field
+        )
+      );
+
+      setSelectedField((prev) =>
+        prev && prev.id === fieldId
+          ? {
+              ...prev,
+              rating: average,
+              reviews: total,
+            }
+          : prev
+      );
+    },
+    []
+  );
+
+  const currentUserReview = useMemo(() => {
+    if (!currentUser) {
+      return null;
+    }
+    return fieldReviews.find((review) => review.user_id === currentUser.id) ?? null;
+  }, [currentUser, fieldReviews]);
 
   useEffect(() => {
     const handleStorage = (event: StorageEvent) => {
@@ -192,13 +249,19 @@ function FieldFinderPage() {
       try {
         const data = await fetchFields();
         const enriched = data.map((field) => {
+          // Ignore any pre-computed/fake rating counts coming from the field record.
+          // Ratings are only derived from real reviews fetched separately.
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { rating: _rating, reviews: _reviews, ...rest } = field;
           const coordinates =
             Array.isArray(field.coordinates) && field.coordinates.length === 2
               ? [Number(field.coordinates[0]), Number(field.coordinates[1])] as [number, number]
               : ([45.5017, -73.5673] as [number, number]);
 
           return {
-            ...field,
+            ...rest,
+            rating: undefined,
+            reviews: undefined,
             coordinates,
             photos:
               Array.isArray(field.photos) && field.photos.length > 0
@@ -214,6 +277,54 @@ function FieldFinderPage() {
 
     loadFields();
   }, []);
+
+  useEffect(() => {
+    if (!selectedField) {
+      setFieldReviews([]);
+      setReviewForm({ rating: 0, comment: "" });
+      setReviewError(null);
+      setReviewLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setReviewLoading(true);
+    setReviewError(null);
+
+    fetchReviews(selectedField.id)
+      .then((data) => {
+        if (isCancelled) {
+          return;
+        }
+        setFieldReviews(data);
+        applyReviewAggregates(selectedField.id, data);
+        const existing = currentUser
+          ? data.find((review) => review.user_id === currentUser.id)
+          : null;
+        setReviewForm({
+          rating: existing?.rating ?? 0,
+          comment: existing?.comment ?? "",
+        });
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setReviewError(
+            error instanceof Error
+              ? error.message
+              : "Impossible de charger les avis"
+          );
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setReviewLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedField?.id, currentUser?.id, applyReviewAggregates]);
 
   const filteredFields = useMemo(
     () => filterFields(fields, filters, searchTerm),
@@ -280,6 +391,78 @@ function FieldFinderPage() {
 
   const handleCloseCard = () => {
     setSelectedField(null);
+  };
+
+  const handleSaveReview = async () => {
+    if (!currentUser || !selectedField) {
+      return;
+    }
+    if (reviewForm.rating < 1) {
+      setReviewError("Merci de choisir une note avant d'envoyer votre avis.");
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError(null);
+
+    try {
+      const saved = await upsertReview(selectedField.id, currentUser.id, {
+        rating: reviewForm.rating,
+        comment: reviewForm.comment.trim() || null,
+      });
+
+      setFieldReviews((prev) => {
+        const existingIndex = prev.findIndex(
+          (review) =>
+            review.user_id === saved.user_id &&
+            review.field_id === saved.field_id
+        );
+        const next = [...prev];
+        if (existingIndex >= 0) {
+          next[existingIndex] = saved;
+        } else {
+          next.unshift(saved);
+        }
+        applyReviewAggregates(selectedField.id, next);
+        return next;
+      });
+    } catch (error) {
+      setReviewError(
+        error instanceof Error
+          ? error.message
+          : "Impossible d'enregistrer votre avis."
+      );
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const handleDeleteReview = async () => {
+    if (!currentUser || !selectedField) {
+      return;
+    }
+    setReviewSubmitting(true);
+    setReviewError(null);
+
+    try {
+      await deleteReviewApi(selectedField.id, currentUser.id);
+      setFieldReviews((prev) => {
+        const next = prev.filter(
+          (review) => review.user_id !== currentUser.id
+        );
+        applyReviewAggregates(selectedField.id, next);
+        return next;
+      });
+      setReviewForm({ rating: 0, comment: "" });
+    } catch (error) {
+      setReviewError(
+        error instanceof Error
+          ? error.message
+          : "Impossible de supprimer votre avis."
+      );
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   const handleToggleFavorite = async (fieldId: number) => {
@@ -820,6 +1003,159 @@ function FieldFinderPage() {
                            isFavorite={favorites.includes(selectedField.id)}
                            disableFavorite={favoritePendingIds.includes(selectedField.id)}
                         />
+                        <div className="mt-4 bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-slate-400 font-semibold">
+                                Notes & avis
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Star
+                                  className="w-5 h-5 text-amber-400"
+                                  fill="currentColor"
+                                />
+                                <span className="text-lg font-bold text-slate-800">
+                                  {selectedField.rating ?? "—"}
+                                </span>
+                                <span className="text-sm text-slate-500">
+                                  {selectedField.reviews ?? 0} avis
+                                </span>
+                              </div>
+                            </div>
+                            {currentUserReview && (
+                              <button
+                                onClick={handleDeleteReview}
+                                disabled={reviewSubmitting}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-red-600 bg-red-50 rounded-lg border border-red-100 hover:bg-red-100 disabled:opacity-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                <span className="hidden sm:inline">Supprimer</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {reviewError && (
+                            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                              {reviewError}
+                            </div>
+                          )}
+
+                          <div className="space-y-3">
+                            {currentUser ? (
+                              <>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-sm font-medium text-slate-700">
+                                    Votre note
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    {[1, 2, 3, 4, 5].map((value) => (
+                                      <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() =>
+                                          setReviewForm((prev) => ({
+                                            ...prev,
+                                            rating: value,
+                                          }))
+                                        }
+                                        className="p-1 rounded-lg hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                      >
+                                        <Star
+                                          className="w-5 h-5"
+                                          strokeWidth={reviewForm.rating >= value ? 2.5 : 2}
+                                          fill={
+                                            reviewForm.rating >= value
+                                              ? "#fbbf24"
+                                              : "none"
+                                          }
+                                          color={reviewForm.rating >= value ? "#d97706" : undefined}
+                                        />
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <span className="text-sm text-slate-500">
+                                    {reviewForm.rating ? `${reviewForm.rating}/5` : "Choisissez une note"}
+                                  </span>
+                                </div>
+                                <textarea
+                                  value={reviewForm.comment}
+                                  onChange={(e) =>
+                                    setReviewForm((prev) => ({
+                                      ...prev,
+                                      comment: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Partagez votre experience (facultatif)"
+                                  rows={3}
+                                  className="w-full rounded-xl border border-slate-200 focus:ring-emerald-500 focus:border-emerald-500 text-sm text-slate-700"
+                                />
+                                <div className="flex justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={handleSaveReview}
+                                    disabled={reviewSubmitting}
+                                    className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                                  >
+                                    {reviewSubmitting ? "Envoi..." : "Enregistrer mon avis"}
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-sm text-slate-600">
+                                Connectez-vous pour laisser un avis sur ce terrain.
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="border-t border-slate-200 pt-3">
+                            <h4 className="text-sm font-semibold text-slate-800 mb-2">
+                              Avis des joueurs
+                            </h4>
+                            {reviewLoading ? (
+                              <p className="text-sm text-slate-500">Chargement des avis...</p>
+                            ) : fieldReviews.length === 0 ? (
+                              <p className="text-sm text-slate-500">
+                                Aucun avis pour l'instant. Soyez le premier !
+                              </p>
+                            ) : (
+                              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                                {fieldReviews.map((review) => (
+                                  <div
+                                    key={review.id}
+                                    className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-100"
+                                  >
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex items-center">
+                                          {[1, 2, 3, 4, 5].map((value) => (
+                                            <Star
+                                              key={value}
+                                              className="w-4 h-4"
+                                              fill={review.rating >= value ? "#fbbf24" : "none"}
+                                              color={review.rating >= value ? "#d97706" : "#d1d5db"}
+                                              strokeWidth={review.rating >= value ? 2.5 : 2}
+                                            />
+                                          ))}
+                                        </div>
+                                        <span className="text-xs text-slate-500">
+                                          {review.user_name || `Utilisateur #${review.user_id}`}
+                                        </span>
+                                      </div>
+                                      <span className="text-xs text-slate-400">
+                                        {new Date(review.created_at).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    {review.comment ? (
+                                      <p className="text-sm text-slate-700 mt-2">{review.comment}</p>
+                                    ) : (
+                                      <p className="text-xs text-slate-500 mt-2">Pas de commentaire.</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                      </div>
                   )}
                </div>
