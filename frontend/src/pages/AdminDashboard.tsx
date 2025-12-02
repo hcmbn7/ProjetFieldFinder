@@ -29,6 +29,7 @@ interface FieldFormState {
   address: string;
   latitude: string;
   longitude: string;
+  hidden: boolean;
   surface_type: string;
   format: string;
   borough: string;
@@ -48,6 +49,7 @@ const emptyForm: FieldFormState = {
   address: "",
   latitude: "",
   longitude: "",
+  hidden: false,
   surface_type: "",
   format: "",
   borough: "",
@@ -87,6 +89,7 @@ function buildFieldPayload(state: FieldFormState): FieldPayload {
     name: state.name.trim(),
     address: state.address.trim(),
     coordinates: [latitude, longitude],
+    hidden: state.hidden,
     surface_type: state.surface_type.trim() || undefined,
     format: state.format.trim() || undefined,
     lighting: state.lighting,
@@ -96,8 +99,8 @@ function buildFieldPayload(state: FieldFormState): FieldPayload {
     website: state.website.trim() || undefined,
     borough: state.borough.trim() || undefined,
     description: state.description.trim() || undefined,
-  amenities: toList(state.amenities),
-  photos: toList(state.photos),
+    amenities: toList(state.amenities),
+    photos: toList(state.photos),
   };
 
   return payload;
@@ -110,6 +113,7 @@ function hydrateForm(field: SoccerField): FieldFormState {
     address: field.address,
     latitude: String(field.coordinates?.[0] ?? ""),
     longitude: String(field.coordinates?.[1] ?? ""),
+    hidden: Boolean(field.hidden),
     surface_type: field.surface_type ?? "",
     format: field.format ?? "",
     borough: field.borough ?? "",
@@ -292,6 +296,32 @@ export default function AdminDashboard() {
       }
     },
     [authToken, formState.id, loadFields, resetForm]
+  );
+
+  const handleToggleVisibility = useCallback(
+    async (field: SoccerField) => {
+      if (!authToken) {
+        setFormError("Authentification administrateur requise.");
+        return;
+      }
+      const nextHidden = !field.hidden;
+      try {
+        await adminUpdateField(field.id, { hidden: nextHidden }, authToken);
+        setFields((prev) =>
+          prev.map((item) => (item.id === field.id ? { ...item, hidden: nextHidden } : item))
+        );
+        setFormState((prev) =>
+          prev.id === field.id ? { ...prev, hidden: nextHidden } : prev
+        );
+      } catch (error) {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : "Impossible de mettre à jour la visibilité du terrain."
+        );
+      }
+    },
+    [authToken]
   );
 
   const handleFieldSubmit = useCallback(
@@ -708,7 +738,7 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-4 gap-4">
                   <label className="flex items-center space-x-2 text-sm font-semibold text-emerald-800">
                     <input
                       type="checkbox"
@@ -744,6 +774,20 @@ export default function AdminDashboard() {
                       className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
                     />
                     <span>Accessible</span>
+                  </label>
+                  <label className="flex items-center space-x-2 text-sm font-semibold text-emerald-800">
+                    <input
+                      type="checkbox"
+                      checked={formState.hidden}
+                      onChange={(event) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          hidden: event.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span>Masquer aux utilisateurs</span>
                   </label>
                 </div>
 
@@ -829,6 +873,7 @@ export default function AdminDashboard() {
                       <th className="px-4 py-3">Nom</th>
                       <th className="px-4 py-3">Quartier</th>
                       <th className="px-4 py-3 hidden md:table-cell">Adresse</th>
+                      <th className="px-4 py-3">Visibilité</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -847,6 +892,22 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3 text-sm text-emerald-600 hidden md:table-cell">
                           {field.address}
                         </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span
+                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
+                              field.hidden
+                                ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                            }`}
+                          >
+                            <span
+                              className={`h-2 w-2 rounded-full ${
+                                field.hidden ? "bg-amber-500" : "bg-emerald-500"
+                              }`}
+                            />
+                            {field.hidden ? "Caché" : "Visible"}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-sm text-right space-x-2">
                           <button
                             type="button"
@@ -854,6 +915,17 @@ export default function AdminDashboard() {
                             className="inline-flex items-center px-3 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 font-semibold hover:bg-emerald-50 transition"
                           >
                             Modifier
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleVisibility(field)}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-lg border font-semibold transition ${
+                              field.hidden
+                                ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                : "border-amber-200 text-amber-700 hover:bg-amber-50"
+                            }`}
+                          >
+                            {field.hidden ? "Afficher" : "Cacher"}
                           </button>
                           <button
                             type="button"

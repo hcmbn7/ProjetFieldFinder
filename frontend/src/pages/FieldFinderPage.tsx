@@ -125,6 +125,9 @@ function FieldFinderPage() {
     rating: 0,
     comment: "",
   });
+  const [mapFocusFields, setMapFocusFields] = useState<SoccerField[] | null>(null);
+  const [showShowcaseOnMap, setShowShowcaseOnMap] = useState(false);
+  const [showShowcaseButton, setShowShowcaseButton] = useState(true);
 
   const applyReviewAggregates = useCallback(
     (fieldId: number, reviews: Review[]) => {
@@ -253,6 +256,7 @@ function FieldFinderPage() {
           // Ratings are only derived from real reviews fetched separately.
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { rating: _rating, reviews: _reviews, ...rest } = field;
+          const hidden = Boolean(field.hidden);
           const coordinates =
             Array.isArray(field.coordinates) && field.coordinates.length === 2
               ? [Number(field.coordinates[0]), Number(field.coordinates[1])] as [number, number]
@@ -260,6 +264,7 @@ function FieldFinderPage() {
 
           return {
             ...rest,
+            hidden,
             rating: undefined,
             reviews: undefined,
             coordinates,
@@ -269,7 +274,8 @@ function FieldFinderPage() {
                 : ["/Images/placeholder.jpeg"],
           };
         });
-        setFields(enriched);
+        const visibleFields = enriched.filter((field) => !field.hidden);
+        setFields(visibleFields);
       } catch (error) {
         console.error("Failed to fetch fields:", error);
       }
@@ -512,6 +518,23 @@ function FieldFinderPage() {
     showcaseSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const handleShowcaseOnMap = () => {
+    if (showcaseFields.length === 0) {
+      return;
+    }
+    setViewMode("map");
+    setShowOnlyFavoritesOnMap(false);
+    const enabling = !showShowcaseOnMap;
+    setShowShowcaseOnMap(enabling);
+    if (enabling) {
+      setSelectedField(null);
+      setMapFocusFields(showcaseFields);
+    } else {
+      setMapFocusFields(null);
+    }
+    mapCanvasRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   const handleShowcaseClick = (field: SoccerField) => {
     setViewMode("map");
     setSelectedField(field);
@@ -528,6 +551,7 @@ function FieldFinderPage() {
     setCompareFieldIds([null, null]);
     setCompareSelectionTarget(null);
     setShowSuggestions(false);
+    setShowShowcaseOnMap(false);
   };
 
   const formatDisplayName = (value?: string) => {
@@ -562,18 +586,50 @@ function FieldFinderPage() {
     return filteredFields.filter((field) => favorites.includes(field.id));
   }, [favorites, filteredFields, showOnlyFavoritesOnMap]);
 
+  const mapDisplayFields = useMemo(() => {
+    if (showShowcaseOnMap) {
+      return showcaseFields;
+    }
+    return mapFields;
+  }, [mapFields, showcaseFields, showShowcaseOnMap]);
+
   useEffect(() => {
     if (
       selectedField &&
-      !mapFields.some((field) => field.id === selectedField.id)
+      !mapDisplayFields.some((field) => field.id === selectedField.id)
     ) {
       setSelectedField(null);
     }
-  }, [mapFields, selectedField]);
+  }, [mapDisplayFields, selectedField]);
+
+  useEffect(() => {
+    if (!mapFocusFields) {
+      return;
+    }
+    const timer = window.setTimeout(() => setMapFocusFields(null), 500);
+    return () => window.clearTimeout(timer);
+  }, [mapFocusFields]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!mapCanvasRef.current) {
+        setShowShowcaseButton(false);
+        return;
+      }
+      const rect = mapCanvasRef.current.getBoundingClientRect();
+      // Hide the button when the map is near the top to avoid overlapping the navbar.
+      const shouldShow = rect.top > 120;
+      setShowShowcaseButton(shouldShow);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const visibleFieldCount =
-    viewMode === "map" && showOnlyFavoritesOnMap
-      ? mapFields.length
+    viewMode === "map" && (showOnlyFavoritesOnMap || showShowcaseOnMap)
+      ? mapDisplayFields.length
       : filteredFields.length;
 
   useEffect(() => {
@@ -976,18 +1032,25 @@ function FieldFinderPage() {
             {viewMode === 'map' ? (
                <div className="flex flex-col lg:flex-row gap-6 items-start">
                   <div className="flex-1 w-full bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative group">
-                     <div ref={mapCanvasRef} className="h-[500px] lg:h-[700px] w-full bg-slate-100 relative z-0">
+                    <div ref={mapCanvasRef} className="h-[500px] lg:h-[700px] w-full bg-slate-100 relative z-0">
                         <MapComponent
-                           fields={mapFields}
+                           fields={mapDisplayFields}
                            onFieldClick={handleFieldClick}
                            selectedField={selectedField ?? undefined}
                            favoriteIds={favorites}
+                           focusFields={mapFocusFields ?? undefined}
+                           featuredIds={FEATURED_FIELD_IDS}
+                           highlightFeatured={showShowcaseOnMap}
                         />
                      </div>
-                     {showcaseFields.length > 0 && (
-                       <button
-                         onClick={handleShowcaseScroll}
-                         className="absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur text-xs font-bold text-emerald-700 px-3 py-1.5 rounded-lg shadow-sm border border-emerald-100 hover:bg-white transition-all flex items-center gap-1"
+                      {showcaseFields.length > 0 && showShowcaseButton && (
+                        <button
+                          onClick={handleShowcaseOnMap}
+                         className={`absolute top-4 right-4 z-[400] backdrop-blur text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border transition-all flex items-center gap-1 ${
+                           showShowcaseOnMap
+                             ? "bg-amber-100 text-amber-800 border-amber-200"
+                             : "bg-white/90 text-emerald-700 border-emerald-100 hover:bg-white"
+                         }`}
                        >
                          <Sparkles className="w-3 h-3" /> A la une
                        </button>

@@ -14,6 +14,9 @@ interface MapComponentProps {
   onFieldClick: (field: SoccerField) => void;
   selectedField?: SoccerField;
   favoriteIds?: number[];
+  focusFields?: SoccerField[];
+  featuredIds?: number[];
+  highlightFeatured?: boolean;
 }
 
 
@@ -22,6 +25,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
   onFieldClick,
   selectedField,
   favoriteIds = [],
+  focusFields,
+  featuredIds = [],
+  highlightFeatured = false,
 }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -78,10 +84,21 @@ const MapComponent: React.FC<MapComponentProps> = ({
       if (!lat || !lng) return;
 
       const isFavorite = favoriteIds.includes(field.id);
+      const isFeaturedActive =
+        highlightFeatured && featuredIds.includes(field.id);
+      const isSelected = selectedField?.id === field.id;
+      const iconSymbol = isFeaturedActive
+        ? "🏆"
+        : isFavorite
+        ? "❤️"
+        : "⚽";
+
       const icon = L.divIcon({
         html: `
-          <div class="soccer-field-marker ${selectedField?.id === field.id ? 'selected' : ''} ${isFavorite ? 'favorite' : ''}">
-            <div class="marker-icon">${isFavorite ? '❤️' : '⚽'}</div>
+          <div class="soccer-field-marker ${isSelected ? 'selected' : ''} ${isFavorite ? 'favorite' : ''} ${
+          isFeaturedActive ? 'featured' : ''
+        }">
+            <div class="marker-icon">${iconSymbol}</div>
             <div class="marker-label">${field.name}</div>
           </div>
         `,
@@ -135,6 +152,25 @@ const MapComponent: React.FC<MapComponentProps> = ({
     }
   }, [selectedField, updatePreviewVisibility]);
 
+  useEffect(() => {
+    if (!mapRef.current || !focusFields?.length) return;
+
+    const coords = focusFields
+      .map((field) => field.coordinates)
+      .filter(
+        (coordinates): coordinates is [number, number] =>
+          Array.isArray(coordinates) &&
+          coordinates.length === 2 &&
+          Number.isFinite(coordinates[0]) &&
+          Number.isFinite(coordinates[1])
+      );
+
+    if (coords.length === 0) return;
+
+    const bounds = L.latLngBounds(coords.map(([lat, lng]) => [lat, lng]));
+    mapRef.current.fitBounds(bounds.pad(0.1));
+  }, [focusFields]);
+
   return (
     <div className="relative w-full h-full">
       <div
@@ -177,6 +213,17 @@ const MapComponent: React.FC<MapComponentProps> = ({
           background: #ef4444;
           color: #fff7ed;
           border-color: #dc2626;
+        }
+        .soccer-field-marker.featured {
+          background: #fef9c3;
+          border-color: #f59e0b;
+          color: #92400e;
+          box-shadow: 0 8px 20px rgba(245, 158, 11, 0.25);
+        }
+        .soccer-field-marker.featured.selected {
+          background: #f59e0b;
+          color: #fff7ed;
+          border-color: #d97706;
         }
         .marker-icon {
           font-size: 14px;

@@ -8,6 +8,10 @@ export const filterFields = (
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
   return fields.filter((field) => {
+    if (field.hidden) {
+      return false;
+    }
+
     const name = field.name?.toLowerCase() ?? "";
     const address = field.address?.toLowerCase() ?? "";
     const borough = field.borough?.toLowerCase() ?? "";

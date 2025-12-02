@@ -15,6 +15,7 @@ export interface FieldPayload {
   name: string;
   address: string;
   coordinates: [number, number];
+  hidden?: boolean;
   surface_type?: string;
   format?: string;
   lighting?: boolean;
