@@ -73,3 +73,26 @@ export interface ReviewCreate {
   rating: number;
   comment?: string | null;
 }
+
+export interface GameParticipant {
+  user_id: number;
+  role: string;
+  status: string;
+  joined_at: string;
+}
+
+export interface Game {
+  id: number;
+  title: string;
+  field_id: number;
+  organizer_id: number;
+  start_at: string;
+  duration_minutes: number;
+  max_players: number;
+  skill_level?: string | null;
+  notes?: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  participants: GameParticipant[];
+}

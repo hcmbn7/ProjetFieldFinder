@@ -17,6 +17,8 @@ interface MapComponentProps {
   focusFields?: SoccerField[];
   featuredIds?: number[];
   highlightFeatured?: boolean;
+  pickupIds?: number[];
+  highlightPickup?: boolean;
 }
 
 
@@ -28,6 +30,8 @@ const MapComponent: React.FC<MapComponentProps> = ({
   focusFields,
   featuredIds = [],
   highlightFeatured = false,
+  pickupIds = [],
+  highlightPickup = false,
 }) => {
   const mapRef = useRef<L.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -86,9 +90,12 @@ const MapComponent: React.FC<MapComponentProps> = ({
       const isFavorite = favoriteIds.includes(field.id);
       const isFeaturedActive =
         highlightFeatured && featuredIds.includes(field.id);
+      const isPickupActive = highlightPickup && pickupIds.includes(field.id);
       const isSelected = selectedField?.id === field.id;
       const iconSymbol = isFeaturedActive
         ? "🏆"
+        : isPickupActive
+        ? "👥"
         : isFavorite
         ? "❤️"
         : "⚽";
@@ -97,6 +104,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
         html: `
           <div class="soccer-field-marker ${isSelected ? 'selected' : ''} ${isFavorite ? 'favorite' : ''} ${
           isFeaturedActive ? 'featured' : ''
+        } ${isPickupActive ? 'pickup' : ''
         }">
             <div class="marker-icon">${iconSymbol}</div>
             <div class="marker-label">${field.name}</div>
@@ -224,6 +232,17 @@ const MapComponent: React.FC<MapComponentProps> = ({
           background: #f59e0b;
           color: #fff7ed;
           border-color: #d97706;
+        }
+        .soccer-field-marker.pickup {
+          background: #e0f2fe;
+          border-color: #38bdf8;
+          color: #075985;
+          box-shadow: 0 8px 20px rgba(56, 189, 248, 0.25);
+        }
+        .soccer-field-marker.pickup.selected {
+          background: #0ea5e9;
+          color: #e0f2fe;
+          border-color: #0284c7;
         }
         .marker-icon {
           font-size: 14px;

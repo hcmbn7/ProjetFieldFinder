@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Heart, List, MapPin, Search, Send, Sparkles, Star, Trash2, User as UserIcon, LogOut, PlusCircle, Shield } from "lucide-react";
+import { Heart, List, MapPin, Search, Send, Sparkles, Star, Trash2, User as UserIcon, LogOut, PlusCircle, Shield, Users, CalendarDays } from "lucide-react";
 import MapComponent from "../components/MapComponent";
 import FieldCard from "../components/FieldCard";
 import SearchBar from "../components/SearchBar";
@@ -16,8 +16,16 @@ import {
   fetchReviews,
   upsertReview,
 } from "../api/reviews";
+import {
+  fetchGamesByField,
+  createGame,
+  joinGame,
+  leaveGame,
+  cancelGame,
+  fetchGamesUpcoming,
+} from "../api/games";
 import { submitSuggestion } from "../api/suggestions";
-import type { MapFilters, Review, SoccerField, User } from "../types";
+import type { Game, MapFilters, Review, SoccerField, User } from "../types";
 import { filterFields } from "../utils";
 
 const USER_STORAGE_KEY = "fieldfinderUser";
@@ -128,6 +136,23 @@ function FieldFinderPage() {
   const [mapFocusFields, setMapFocusFields] = useState<SoccerField[] | null>(null);
   const [showShowcaseOnMap, setShowShowcaseOnMap] = useState(false);
   const [showShowcaseButton, setShowShowcaseButton] = useState(true);
+  const [fieldGames, setFieldGames] = useState<Game[]>([]);
+  const [gamesLoading, setGamesLoading] = useState(false);
+  const [gamesError, setGamesError] = useState<string | null>(null);
+  const [pickupGames, setPickupGames] = useState<Game[]>([]);
+  const [showPickupOnMap, setShowPickupOnMap] = useState(false);
+  const [showEventsPanel, setShowEventsPanel] = useState(false);
+  const [userEvents, setUserEvents] = useState<Game[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [gameForm, setGameForm] = useState({
+    title: "",
+    start_at: "",
+    duration_minutes: 60,
+    max_players: 10,
+    skill_level: "",
+    notes: "",
+  });
 
   const applyReviewAggregates = useCallback(
     (fieldId: number, reviews: Review[]) => {
@@ -290,6 +315,7 @@ function FieldFinderPage() {
       setReviewForm({ rating: 0, comment: "" });
       setReviewError(null);
       setReviewLoading(false);
+      setFieldGames([]);
       return;
     }
 
@@ -331,6 +357,37 @@ function FieldFinderPage() {
       isCancelled = true;
     };
   }, [selectedField?.id, currentUser?.id, applyReviewAggregates]);
+
+  useEffect(() => {
+    if (!selectedField) {
+      setFieldGames([]);
+      return;
+    }
+    let isCancelled = false;
+    setGamesLoading(true);
+    setGamesError(null);
+    fetchGamesByField(selectedField.id)
+      .then((games) => {
+        if (!isCancelled) {
+          setFieldGames(games);
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setGamesError(
+            error instanceof Error ? error.message : "Impossible de charger les matchs."
+          );
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setGamesLoading(false);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedField?.id]);
 
   const filteredFields = useMemo(
     () => filterFields(fields, filters, searchTerm),
@@ -524,6 +581,7 @@ function FieldFinderPage() {
     }
     setViewMode("map");
     setShowOnlyFavoritesOnMap(false);
+    setShowPickupOnMap(false);
     const enabling = !showShowcaseOnMap;
     setShowShowcaseOnMap(enabling);
     if (enabling) {
@@ -552,6 +610,8 @@ function FieldFinderPage() {
     setCompareSelectionTarget(null);
     setShowSuggestions(false);
     setShowShowcaseOnMap(false);
+    setShowPickupOnMap(false);
+    setShowEventsPanel(false);
   };
 
   const formatDisplayName = (value?: string) => {
@@ -586,12 +646,20 @@ function FieldFinderPage() {
     return filteredFields.filter((field) => favorites.includes(field.id));
   }, [favorites, filteredFields, showOnlyFavoritesOnMap]);
 
+  const pickupFieldIds = useMemo(
+    () => new Set(pickupGames.map((game) => game.field_id)),
+    [pickupGames]
+  );
+
   const mapDisplayFields = useMemo(() => {
     if (showShowcaseOnMap) {
       return showcaseFields;
     }
+    if (showPickupOnMap) {
+      return mapFields.filter((field) => pickupFieldIds.has(field.id));
+    }
     return mapFields;
-  }, [mapFields, showcaseFields, showShowcaseOnMap]);
+  }, [mapFields, pickupFieldIds, showPickupOnMap, showcaseFields, showShowcaseOnMap]);
 
   useEffect(() => {
     if (
@@ -611,6 +679,25 @@ function FieldFinderPage() {
   }, [mapFocusFields]);
 
   useEffect(() => {
+    if (!showPickupOnMap) return;
+    let isCancelled = false;
+    fetchGamesUpcoming()
+      .then((games) => {
+        if (!isCancelled) {
+          setPickupGames(games);
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          console.error(error);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [showPickupOnMap]);
+
+  useEffect(() => {
     const handleScroll = () => {
       if (!mapCanvasRef.current) {
         setShowShowcaseButton(false);
@@ -628,7 +715,7 @@ function FieldFinderPage() {
   }, []);
 
   const visibleFieldCount =
-    viewMode === "map" && (showOnlyFavoritesOnMap || showShowcaseOnMap)
+    viewMode === "map" && (showOnlyFavoritesOnMap || showShowcaseOnMap || showPickupOnMap)
       ? mapDisplayFields.length
       : filteredFields.length;
 
@@ -694,6 +781,115 @@ function FieldFinderPage() {
             : "Impossible d'envoyer votre suggestion pour le moment."
         );
       });
+  };
+
+  const loadUserEvents = useCallback(async () => {
+    if (!currentUser) return;
+    setEventsLoading(true);
+    setEventsError(null);
+    try {
+      const games = await fetchGamesUpcoming();
+      const mine = games.filter(
+        (game) =>
+          game.organizer_id === currentUser.id ||
+          (game.participants ?? []).some((p) => p.user_id === currentUser.id)
+      );
+      setUserEvents(mine);
+    } catch (error) {
+      setEventsError(
+        error instanceof Error ? error.message : "Impossible de charger vos matchs."
+      );
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (showEventsPanel && currentUser) {
+      loadUserEvents();
+    }
+  }, [currentUser, loadUserEvents, showEventsPanel]);
+
+  const handleCreateGame = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedField || !currentUser) {
+      return;
+    }
+    if (!gameForm.title.trim() || !gameForm.start_at) {
+      setGamesError("Titre et date/heure requis.");
+      return;
+    }
+    const parsedStart = new Date(gameForm.start_at);
+    if (!Number.isFinite(parsedStart.getTime()) || parsedStart.getTime() <= Date.now()) {
+      setGamesError("La date doit être dans le futur.");
+      return;
+    }
+    setGamesError(null);
+    try {
+      const payload = {
+        title: gameForm.title.trim(),
+        field_id: selectedField.id,
+        organizer_id: currentUser.id,
+        start_at: new Date(gameForm.start_at).toISOString(),
+        duration_minutes: Number(gameForm.duration_minutes) || 60,
+        max_players: Number(gameForm.max_players) || 10,
+        skill_level: gameForm.skill_level.trim() || undefined,
+        notes: gameForm.notes.trim() || undefined,
+      };
+      const created = await createGame(payload);
+      setFieldGames((prev) => [...prev, created].sort((a, b) => a.start_at.localeCompare(b.start_at)));
+      setGameForm({
+        title: "",
+        start_at: "",
+        duration_minutes: 60,
+        max_players: 10,
+        skill_level: "",
+        notes: "",
+      });
+    } catch (error) {
+      setGamesError(
+        error instanceof Error ? error.message : "Impossible de créer le match."
+      );
+    }
+  };
+
+  const handleJoinGame = async (gameId: number) => {
+    if (!currentUser) return;
+    try {
+      const updated = await joinGame(gameId, currentUser.id);
+      setFieldGames((prev) => prev.map((g) => (g.id === gameId ? updated : g)));
+      if (showEventsPanel) {
+        loadUserEvents();
+      }
+    } catch (error) {
+      setGamesError(error instanceof Error ? error.message : "Impossible de rejoindre ce match.");
+    }
+  };
+
+  const handleLeaveGame = async (gameId: number) => {
+    if (!currentUser) return;
+    try {
+      const updated = await leaveGame(gameId, currentUser.id);
+      setFieldGames((prev) => prev.map((g) => (g.id === gameId ? updated : g)));
+      if (showEventsPanel) {
+        loadUserEvents();
+      }
+    } catch (error) {
+      setGamesError(error instanceof Error ? error.message : "Impossible de quitter ce match.");
+    }
+  };
+
+  const handleCancelGame = async (gameId: number) => {
+    if (!currentUser) return;
+    try {
+      const updated = await cancelGame(gameId, currentUser.id);
+      setFieldGames((prev) => prev.map((g) => (g.id === gameId ? updated : g)));
+      if (showEventsPanel) {
+        loadUserEvents();
+      }
+    } catch (error) {
+      setGamesError(error instanceof Error ? error.message : "Impossible d'annuler ce match.");
+    }
   };
 
 
@@ -767,6 +963,15 @@ function FieldFinderPage() {
                     </Link>
                     <button
                       type="button"
+                      onClick={() => setShowEventsPanel((prev) => !prev)}
+                      className="p-2 md:px-4 md:py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 transition-all flex items-center gap-2"
+                      title="Mes événements"
+                    >
+                       <CalendarDays className="w-4 h-4" />
+                       <span className="hidden md:inline">Événements</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setShowSuggestions((prev) => !prev)}
                       className="p-2 md:px-4 md:py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-700 hover:border-emerald-200 hover:text-emerald-700 hover:bg-emerald-50 transition-all flex items-center gap-2"
                       title="Proposer un terrain"
@@ -810,6 +1015,57 @@ function FieldFinderPage() {
           </div>
         </div>
       </header>
+
+      {showEventsPanel && currentUser && (
+        <div className="fixed top-20 right-4 z-[500] w-full max-w-sm">
+          <div className="bg-white shadow-2xl rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <div>
+                <p className="text-xs uppercase text-emerald-600 font-semibold tracking-wide">Vos matchs</p>
+                <h3 className="text-sm font-bold text-slate-800">Événements à venir</h3>
+              </div>
+              <button
+                onClick={() => setShowEventsPanel(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 max-h-96 overflow-y-auto">
+              {eventsLoading ? (
+                <p className="text-sm text-slate-500">Chargement...</p>
+              ) : eventsError ? (
+                <p className="text-sm text-red-600">{eventsError}</p>
+              ) : userEvents.length === 0 ? (
+                <p className="text-sm text-slate-500">Aucun match prévu.</p>
+              ) : (
+                <div className="space-y-3">
+                  {userEvents.map((game) => (
+                    <div key={game.id} className="border border-slate-200 rounded-xl p-3 bg-slate-50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{game.title}</p>
+                          <p className="text-xs text-slate-500">
+                            {new Date(game.start_at).toLocaleString()} • {game.duration_minutes} min
+                          </p>
+                          <p className="text-xs text-slate-500">Terrain #{game.field_id}</p>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-[11px] font-bold ${
+                          game.status === "cancelled"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-emerald-100 text-emerald-700"
+                        }`}>
+                          {game.status === "cancelled" ? "Annulé" : "Planifié"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative z-40 py-4 px-4 sm:px-6 lg:px-8 pointer-events-none">
         <div className="max-w-7xl mx-auto">
@@ -1040,21 +1296,51 @@ function FieldFinderPage() {
                            favoriteIds={favorites}
                            focusFields={mapFocusFields ?? undefined}
                            featuredIds={FEATURED_FIELD_IDS}
+                           pickupIds={Array.from(pickupFieldIds)}
+                           highlightPickup={showPickupOnMap}
                            highlightFeatured={showShowcaseOnMap}
-                        />
+                         />
                      </div>
-                      {showcaseFields.length > 0 && showShowcaseButton && (
-                        <button
-                          onClick={handleShowcaseOnMap}
-                         className={`absolute top-4 right-4 z-[400] backdrop-blur text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border transition-all flex items-center gap-1 ${
-                           showShowcaseOnMap
-                             ? "bg-amber-100 text-amber-800 border-amber-200"
-                             : "bg-white/90 text-emerald-700 border-emerald-100 hover:bg-white"
-                         }`}
-                       >
-                         <Sparkles className="w-3 h-3" /> A la une
-                       </button>
-                     )}
+                      {showShowcaseButton && (
+                        <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2">
+                          {showcaseFields.length > 0 && (
+                            <button
+                              onClick={handleShowcaseOnMap}
+                              className={`backdrop-blur text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border transition-all flex items-center gap-1 ${
+                                showShowcaseOnMap
+                                  ? "bg-amber-100 text-amber-800 border-amber-200"
+                                  : "bg-white/90 text-emerald-700 border-emerald-100 hover:bg-white"
+                              }`}
+                            >
+                              <Sparkles className="w-3 h-3" /> A la une
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              setViewMode("map");
+                              setShowOnlyFavoritesOnMap(false);
+                              setShowShowcaseOnMap(false);
+                              const enable = !showPickupOnMap;
+                              setShowPickupOnMap(enable);
+                              setSelectedField(null);
+                              if (enable) {
+                                setMapFocusFields(
+                                  mapFields.filter((field) => pickupFieldIds.has(field.id))
+                                );
+                              } else {
+                                setMapFocusFields(null);
+                              }
+                            }}
+                            className={`backdrop-blur text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm border transition-all flex items-center gap-1 ${
+                              showPickupOnMap
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                                : "bg-white/90 text-emerald-700 border-emerald-100 hover:bg-white"
+                            }`}
+                          >
+                            <Users className="w-3 h-3" /> Pickup
+                          </button>
+                        </div>
+                      )}
                   </div>
 
                   {selectedField && (
@@ -1066,6 +1352,165 @@ function FieldFinderPage() {
                            isFavorite={favorites.includes(selectedField.id)}
                            disableFavorite={favoritePendingIds.includes(selectedField.id)}
                         />
+                        <div className="mt-4 bg-white rounded-2xl border border-amber-100 shadow-sm p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide text-amber-600 font-semibold">
+                                Matchs pickup
+                              </p>
+                              <h4 className="text-base font-bold text-slate-800">Organiser ou rejoindre</h4>
+                            </div>
+                            {currentUser && (
+                              <button
+                                className="text-sm text-emerald-700 font-semibold hover:underline"
+                                onClick={() => {
+                                  if (!mapCanvasRef.current) return;
+                                  mapCanvasRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+                                }}
+                              >
+                                Sur la carte
+                              </button>
+                            )}
+                          </div>
+                          {gamesError && (
+                            <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                              {gamesError}
+                            </div>
+                          )}
+                          {gamesLoading ? (
+                            <p className="text-sm text-slate-500">Chargement des matchs...</p>
+                          ) : fieldGames.length === 0 ? (
+                            <p className="text-sm text-slate-500">Pas encore de matchs sur ce terrain.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {fieldGames.map((game) => {
+                                const participantIds = game.participants?.map((p) => p.user_id) ?? [];
+                                const isOrganizer = currentUser?.id === game.organizer_id;
+                                const isJoined = currentUser ? participantIds.includes(currentUser.id) : false;
+                                const spotsLeft = Math.max(
+                                  0,
+                                  game.max_players - (game.participants?.length ?? 0)
+                                );
+                                return (
+                                  <div key={game.id} className="border border-amber-100 rounded-xl p-3 bg-amber-50/50">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div>
+                                        <p className="text-sm font-semibold text-slate-800">{game.title}</p>
+                                        <p className="text-xs text-slate-500">
+                                          {new Date(game.start_at).toLocaleString()} • {game.duration_minutes} min
+                                        </p>
+                                      </div>
+                                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                        game.status === "cancelled"
+                                          ? "bg-red-100 text-red-700"
+                                          : "bg-emerald-100 text-emerald-700"
+                                      }`}>
+                                        {game.status === "cancelled" ? "Annulé" : "Planifié"}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs text-slate-600 mt-2">
+                                      <span>Places restantes: {spotsLeft}</span>
+                                      <span>Participants: {game.participants?.length ?? 0}/{game.max_players}</span>
+                                    </div>
+                                    {currentUser && game.status !== "cancelled" && (
+                                      <div className="flex gap-2 mt-3">
+                                        {isOrganizer ? (
+                                          <button
+                                            onClick={() => handleCancelGame(game.id)}
+                                            className="px-3 py-1.5 rounded-lg text-sm font-semibold border border-red-200 text-red-600 hover:bg-red-50 transition"
+                                          >
+                                            Annuler
+                                          </button>
+                                        ) : isJoined ? (
+                                          <button
+                                            onClick={() => handleLeaveGame(game.id)}
+                                            className="px-3 py-1.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-700 hover:bg-slate-50 transition"
+                                          >
+                                            Quitter
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={() => handleJoinGame(game.id)}
+                                            className="px-3 py-1.5 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-60"
+                                            disabled={spotsLeft === 0}
+                                          >
+                                            {spotsLeft === 0 ? "Complet" : "Rejoindre"}
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {currentUser ? (
+                            <form onSubmit={handleCreateGame} className="space-y-3 border-t border-amber-100 pt-3">
+                              <p className="text-sm font-semibold text-slate-700">Organiser un match</p>
+                              <input
+                                value={gameForm.title}
+                                onChange={(e) => setGameForm((prev) => ({ ...prev, title: e.target.value }))}
+                                placeholder="Titre (ex: Pickup 7v7)"
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                              />
+                              <input
+                                type="datetime-local"
+                                value={gameForm.start_at}
+                                onChange={(e) => setGameForm((prev) => ({ ...prev, start_at: e.target.value }))}
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                              />
+                              <div className="grid grid-cols-2 gap-3">
+                                <label className="flex flex-col text-xs font-semibold text-slate-600 gap-1">
+                                  <span>Durée (minutes)</span>
+                                  <input
+                                    type="number"
+                                    min={15}
+                                    max={300}
+                                    value={gameForm.duration_minutes}
+                                    onChange={(e) => setGameForm((prev) => ({ ...prev, duration_minutes: Number(e.target.value) }))}
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                  />
+                                </label>
+                                <label className="flex flex-col text-xs font-semibold text-slate-600 gap-1">
+                                  <span>Places max</span>
+                                  <input
+                                    type="number"
+                                    min={2}
+                                    max={40}
+                                    value={gameForm.max_players}
+                                    onChange={(e) => setGameForm((prev) => ({ ...prev, max_players: Number(e.target.value) }))}
+                                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                  />
+                                </label>
+                              </div>
+                              <input
+                                value={gameForm.skill_level}
+                                onChange={(e) => setGameForm((prev) => ({ ...prev, skill_level: e.target.value }))}
+                                placeholder="Niveau (débutant, intermédiaire...)"
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                              />
+                              <textarea
+                                value={gameForm.notes}
+                                onChange={(e) => setGameForm((prev) => ({ ...prev, notes: e.target.value }))}
+                                placeholder="Notes (ballons, maillots...)"
+                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                                rows={2}
+                              />
+                              <div className="flex justify-end">
+                                <button
+                                  type="submit"
+                                  className="px-4 py-2 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 transition"
+                                >
+                                  Publier
+                                </button>
+                              </div>
+                            </form>
+                          ) : (
+                            <p className="text-sm text-slate-500">
+                              Connectez-vous pour organiser ou rejoindre un match.
+                            </p>
+                          )}
+                        </div>
                         <div className="mt-4 bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 space-y-3">
                           <div className="flex items-start justify-between gap-3">
                             <div>
