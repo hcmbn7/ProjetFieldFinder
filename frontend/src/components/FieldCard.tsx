@@ -1,24 +1,33 @@
 import React from "react";
 import {
+  Accessibility,
+  Car,
+  Globe,
+  Heart,
+  Lightbulb,
   MapPin,
   Phone,
-  Globe,
-  Lightbulb,
-  Car,
-  Accessibility,
   Star,
   X,
 } from "lucide-react";
-import { Field } from "../api/fields";
 import { getFieldIcon } from "../utils";
+import type { SoccerField } from "../types";
 
 interface FieldCardProps {
-  field: Field;
-  onClose: () => void;
+  field: SoccerField;
+  onClose?: () => void;
+  onToggleFavorite?: (fieldId: number) => void;
+  isFavorite?: boolean;
+  disableFavorite?: boolean;
 }
 
-const FieldCard: React.FC<FieldCardProps> = ({ field, onClose }) => {
-  console.log("FieldCard props:", field);
+const FieldCard: React.FC<FieldCardProps> = ({
+  field,
+  onClose,
+  onToggleFavorite,
+  isFavorite = false,
+  disableFavorite = false,
+}) => {
   return (
     <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-emerald-100/50 p-6 max-w-md mx-auto">
       <div className="flex justify-between items-start mb-4">
@@ -28,14 +37,43 @@ const FieldCard: React.FC<FieldCardProps> = ({ field, onClose }) => {
           </div>
           <h3 className="text-xl font-bold text-emerald-800">{field.name}</h3>
         </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-emerald-400 hover:text-emerald-600 transition-colors p-1 rounded-lg hover:bg-emerald-50/50"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        )}
+        <div className="flex items-center space-x-1.5">
+          {onToggleFavorite && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleFavorite(field.id);
+              }}
+              disabled={disableFavorite}
+              aria-pressed={isFavorite}
+              className={`p-1.5 rounded-lg transition-all ${
+                isFavorite
+                  ? "text-emerald-600 bg-emerald-50 border border-emerald-200"
+                  : "text-emerald-400 hover:text-emerald-600 hover:bg-emerald-50/50"
+              } ${disableFavorite ? "opacity-60 cursor-not-allowed" : ""}`}
+              title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+            >
+              <Heart
+                className="h-5 w-5"
+                strokeWidth={isFavorite ? 2.5 : 2}
+                fill={isFavorite ? "currentColor" : "none"}
+              />
+            </button>
+          )}
+          {onClose && (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onClose();
+              }}
+              className="text-emerald-400 hover:text-emerald-600 transition-colors p-1 rounded-lg hover:bg-emerald-50/50"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mb-5">
@@ -54,7 +92,7 @@ const FieldCard: React.FC<FieldCardProps> = ({ field, onClose }) => {
           </span>
         </div>
 
-        {field.rating && (
+        {field.rating !== undefined && field.rating !== null && (
           <div className="flex items-center space-x-2">
             <Star className="h-4 w-4 text-yellow-500" />
             <span className="text-sm text-emerald-700 font-medium">

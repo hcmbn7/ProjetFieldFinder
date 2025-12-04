@@ -28,3 +28,14 @@ export const boroughs = [
   "Villeray–Saint-Michel–Parc-Extension"
 ];
 
+export const formatOptions = [
+  "5v5",
+  "7v7",
+  "11v11"
+];
+
+export const surfaceTypes = [
+  "Natural",
+  "Artificial",
+  "Indoor"
+];

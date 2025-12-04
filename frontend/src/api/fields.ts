@@ -1,27 +1,11 @@
-export interface Field {
-  id: number;
-  name: string;
-  address: string;
-  coordinates: [number, number];
-  surface_type?: string;
-  format?: string;
-  lighting?: boolean;
-  parking?: boolean;
-  accessibility?: boolean;
-  phone?: string;
-  website?: string;
-  borough?: string;
-  description?: string;
-  amenities?: string[];
-  rating?: number;
-  reviews?: number;
-  photos?: string[];
-}
+import type { SoccerField } from "../types";
 
-const API_URL = "http://127.0.0.1:8000/api/fields";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api";
+const FIELDS_ENDPOINT = `${API_BASE_URL}/fields`;
 
-export async function fetchFields(): Promise<Field[]> {
-  const res = await fetch(API_URL);
+export async function fetchFields(): Promise<SoccerField[]> {
+  const res = await fetch(FIELDS_ENDPOINT);
   if (!res.ok) {
     throw new Error("Failed to fetch fields");
   }

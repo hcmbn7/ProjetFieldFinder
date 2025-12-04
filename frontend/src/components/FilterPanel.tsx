@@ -36,7 +36,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           }`}
       >
         <Sliders className="h-5 w-5" />
-        <span className="font-semibold">Filters</span>
+        <span className="font-semibold">Filtres</span>
         {hasActiveFilters && (
           <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
         )}
