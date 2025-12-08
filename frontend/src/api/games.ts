@@ -20,6 +20,19 @@ export async function fetchGamesUpcoming(): Promise<Game[]> {
   return res.json();
 }
 
+export async function fetchGamesHistory(organizerId?: number): Promise<Game[]> {
+  const query = organizerId ? `?organizer_id=${organizerId}` : "";
+  const res = await fetch(`${GAMES_ENDPOINT}/history${query}`);
+  if (!res.ok) {
+    const text = await res.text();
+    console.error("History request failed", res.status, res.statusText, text);
+    throw new Error("Impossible de charger l'historique des matchs.");
+  }
+  const data = await res.json();
+  console.debug("History payload length:", Array.isArray(data) ? data.length : "unknown");
+  return data;
+}
+
 export interface GamePayload {
   title: string;
   field_id: number;
