@@ -52,16 +52,7 @@ export const filterFields = (
 };
 
 export const getFieldIcon = (type: string): string => {
-  switch (type) {
-    case "Natural":
-      return "🌱";
-    case "Artificial":
-      return "🏟️";
-    case "Indoor":
-      return "🏢";
-    default:
-      return "⚽";
-  }
+  return "⚽";
 };
 
 export const formatRating = (rating: number = 0): string => {
