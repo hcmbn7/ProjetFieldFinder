@@ -17,6 +17,7 @@ export interface SoccerField {
   rating?: number;
   reviews?: number;
   photos?: string[];
+  featured?: boolean;
 }
 
 export interface MapFilters {

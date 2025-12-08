@@ -30,6 +30,7 @@ interface FieldFormState {
   latitude: string;
   longitude: string;
   hidden: boolean;
+  featured: boolean;
   surface_type: string;
   format: string;
   borough: string;
@@ -50,6 +51,7 @@ const emptyForm: FieldFormState = {
   latitude: "",
   longitude: "",
   hidden: false,
+  featured: false,
   surface_type: "",
   format: "",
   borough: "",
@@ -68,6 +70,8 @@ const BOROUGH_OPTIONS = ["", ...new Set([...boroughs, "Autre"])];
 const FORMAT_OPTIONS = ["", ...new Set([...formatOptions, "Autre"])];
 
 const SURFACE_OPTIONS = ["", ...new Set([...surfaceTypes, "Autre"])];
+
+const MAX_FEATURED = 3;
 
 function toList(value: string): string[] | undefined {
   const items = value
@@ -90,6 +94,7 @@ function buildFieldPayload(state: FieldFormState): FieldPayload {
     address: state.address.trim(),
     coordinates: [latitude, longitude],
     hidden: state.hidden,
+    featured: state.featured,
     surface_type: state.surface_type.trim() || undefined,
     format: state.format.trim() || undefined,
     lighting: state.lighting,
@@ -114,6 +119,7 @@ function hydrateForm(field: SoccerField): FieldFormState {
     latitude: String(field.coordinates?.[0] ?? ""),
     longitude: String(field.coordinates?.[1] ?? ""),
     hidden: Boolean(field.hidden),
+    featured: Boolean(field.featured),
     surface_type: field.surface_type ?? "",
     format: field.format ?? "",
     borough: field.borough ?? "",
@@ -324,6 +330,44 @@ export default function AdminDashboard() {
     [authToken]
   );
 
+  const handleToggleFeatured = useCallback(
+    async (field: SoccerField) => {
+      if (!authToken) {
+        setFormError("Authentification administrateur requise.");
+        return;
+      }
+      const nextFeatured = !field.featured;
+      if (nextFeatured) {
+        const featuredCount = fields.filter((item) => item.featured).length;
+        if (featuredCount >= MAX_FEATURED) {
+          setFormError(
+            `Maximum ${MAX_FEATURED} terrains à la une. Retirez-en un avant d'en ajouter un autre.`
+          );
+          return;
+        }
+      }
+      try {
+        await adminUpdateField(field.id, { featured: nextFeatured }, authToken);
+        setFields((prev) =>
+          prev.map((item) =>
+            item.id === field.id ? { ...item, featured: nextFeatured } : item
+          )
+        );
+        setFormState((prev) =>
+          prev.id === field.id ? { ...prev, featured: nextFeatured } : prev
+        );
+        setFormError(null);
+      } catch (error) {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : "Impossible de mettre à jour la mise en avant."
+        );
+      }
+    },
+    [authToken, fields]
+  );
+
   const handleFieldSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -335,6 +379,16 @@ export default function AdminDashboard() {
 
       if (!formState.name.trim() || !formState.address.trim()) {
         setFormError("Le nom et l'adresse du terrain sont requis.");
+        return;
+      }
+
+      const otherFeaturedCount = fields.filter(
+        (field) => field.featured && field.id !== formState.id
+      ).length;
+      if (formState.featured && otherFeaturedCount >= MAX_FEATURED) {
+        setFormError(
+          `Maximum ${MAX_FEATURED} terrains à la une. Retirez-en un avant d'en ajouter un autre.`
+        );
         return;
       }
 
@@ -359,7 +413,7 @@ export default function AdminDashboard() {
         setFormSaving(false);
       }
     },
-    [authToken, formMode, formState, loadFields, resetForm]
+    [authToken, fields, formMode, formState, loadFields, resetForm]
   );
 
   const handleSuggestionChange = (id: number, patch: Partial<FieldSuggestion>) => {
@@ -440,6 +494,10 @@ export default function AdminDashboard() {
   };
 
   const totalFields = useMemo(() => fields.length, [fields]);
+  const featuredCount = useMemo(
+    () => fields.filter((field) => field.featured).length,
+    [fields]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-16 px-4">
@@ -738,7 +796,7 @@ export default function AdminDashboard() {
                   />
                 </div>
 
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-5 gap-4">
                   <label className="flex items-center space-x-2 text-sm font-semibold text-emerald-800">
                     <input
                       type="checkbox"
@@ -774,6 +832,20 @@ export default function AdminDashboard() {
                       className="h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
                     />
                     <span>Accessible</span>
+                  </label>
+                  <label className="flex items-center space-x-2 text-sm font-semibold text-emerald-800">
+                    <input
+                      type="checkbox"
+                      checked={formState.featured}
+                      onChange={(event) =>
+                        setFormState((prev) => ({
+                          ...prev,
+                          featured: event.target.checked,
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span>Mettre à la une</span>
                   </label>
                   <label className="flex items-center space-x-2 text-sm font-semibold text-emerald-800">
                     <input
@@ -855,6 +927,9 @@ export default function AdminDashboard() {
                   <p className="text-sm text-emerald-700/80">
                     {totalFields} terrain{totalFields > 1 ? "s" : ""} dans la base de données.
                   </p>
+                  <p className="text-xs text-emerald-700/70">
+                    {featuredCount} mis en avant (max {MAX_FEATURED}).
+                  </p>
                 </div>
                 <button
                   type="button"
@@ -874,6 +949,7 @@ export default function AdminDashboard() {
                       <th className="px-4 py-3">Quartier</th>
                       <th className="px-4 py-3 hidden md:table-cell">Adresse</th>
                       <th className="px-4 py-3">Visibilité</th>
+                      <th className="px-4 py-3">À la une</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -908,6 +984,22 @@ export default function AdminDashboard() {
                             {field.hidden ? "Caché" : "Visible"}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span
+                            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
+                              field.featured
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                : "bg-slate-50 text-slate-600 border border-slate-100"
+                            }`}
+                          >
+                            <span
+                              className={`h-2 w-2 rounded-full ${
+                                field.featured ? "bg-emerald-500" : "bg-slate-400"
+                              }`}
+                            />
+                            {field.featured ? "En avant" : "Standard"}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-sm text-right space-x-2">
                           <button
                             type="button"
@@ -926,6 +1018,17 @@ export default function AdminDashboard() {
                             }`}
                           >
                             {field.hidden ? "Afficher" : "Cacher"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleFeatured(field)}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-lg border font-semibold transition ${
+                              field.featured
+                                ? "border-amber-200 text-amber-700 hover:bg-amber-50"
+                                : "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                          >
+                            {field.featured ? "Retirer de la une" : "Mettre à la une"}
                           </button>
                           <button
                             type="button"
