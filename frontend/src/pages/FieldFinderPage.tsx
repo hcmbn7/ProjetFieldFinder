@@ -65,8 +65,6 @@ const persistUserToStorage = (user: User | null) => {
   }
 };
 
-const FEATURED_FIELD_IDS = [1, 2, 3];
-
 function FieldFinderPage() {
   const [selectedField, setSelectedField] = useState<SoccerField | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -282,6 +280,7 @@ function FieldFinderPage() {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { rating: _rating, reviews: _reviews, ...rest } = field;
           const hidden = Boolean(field.hidden);
+          const featured = Boolean(field.featured);
           const coordinates =
             Array.isArray(field.coordinates) && field.coordinates.length === 2
               ? [Number(field.coordinates[0]), Number(field.coordinates[1])] as [number, number]
@@ -290,6 +289,7 @@ function FieldFinderPage() {
           return {
             ...rest,
             hidden,
+            featured,
             rating: undefined,
             reviews: undefined,
             coordinates,
@@ -402,21 +402,22 @@ function FieldFinderPage() {
     [favorites, fields]
   );
 
+  const featuredFields = useMemo(
+    () => fields.filter((field) => field.featured),
+    [fields]
+  );
+
   const showcaseFields = useMemo(() => {
-    const selected = FEATURED_FIELD_IDS
-      .map((id) => fields.find((field) => field.id === id))
-      .filter((field): field is SoccerField => Boolean(field));
-
-    if (selected.length === FEATURED_FIELD_IDS.length) {
-      return selected;
+    if (featuredFields.length > 0) {
+      return featuredFields.slice(0, 3);
     }
+    return fields.slice(0, 3);
+  }, [featuredFields, fields]);
 
-    const fallbackPool = fields.filter(
-      (field) => !FEATURED_FIELD_IDS.includes(field.id)
-    );
-
-    return [...selected, ...fallbackPool].slice(0, FEATURED_FIELD_IDS.length);
-  }, [fields]);
+  const featuredIds = useMemo(
+    () => featuredFields.map((field) => field.id),
+    [featuredFields]
+  );
 
   const handleFieldClick = (field: SoccerField) => {
     if (compareSelectionTarget !== null) {
@@ -1295,7 +1296,7 @@ function FieldFinderPage() {
                            selectedField={selectedField ?? undefined}
                            favoriteIds={favorites}
                            focusFields={mapFocusFields ?? undefined}
-                           featuredIds={FEATURED_FIELD_IDS}
+                           featuredIds={featuredIds}
                            pickupIds={Array.from(pickupFieldIds)}
                            highlightPickup={showPickupOnMap}
                            highlightFeatured={showShowcaseOnMap}
@@ -1745,9 +1746,6 @@ function FieldFinderPage() {
                      <span className="text-emerald-600 font-bold tracking-wider text-xs uppercase mb-1 block">Sélection du mois</span>
                      <h2 className="text-2xl font-bold text-slate-800">Terrains à la une</h2>
                   </div>
-                  <Link to="/signup" className="text-sm font-medium text-slate-500 hover:text-emerald-600 transition-colors flex items-center gap-1">
-                     Voir tous les terrains <span aria-hidden="true">→</span>
-                  </Link>
                </div>
 
                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

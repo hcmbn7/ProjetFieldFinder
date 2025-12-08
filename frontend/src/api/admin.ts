@@ -29,6 +29,7 @@ export interface FieldPayload {
   rating?: number;
   reviews?: number;
   photos?: string[];
+  featured?: boolean;
 }
 
 function buildAuthHeader(token: string) {
