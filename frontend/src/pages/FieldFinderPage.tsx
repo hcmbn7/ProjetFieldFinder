@@ -23,6 +23,7 @@ import {
   leaveGame,
   cancelGame,
   fetchGamesUpcoming,
+  fetchGamesHistory,
 } from "../api/games";
 import { submitSuggestion } from "../api/suggestions";
 import type { Game, MapFilters, Review, SoccerField, User } from "../types";
@@ -141,8 +142,11 @@ function FieldFinderPage() {
   const [showPickupOnMap, setShowPickupOnMap] = useState(false);
   const [showEventsPanel, setShowEventsPanel] = useState(false);
   const [userEvents, setUserEvents] = useState<Game[]>([]);
+  const [pastGames, setPastGames] = useState<Game[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [eventsError, setEventsError] = useState<string | null>(null);
+  const [pastGamesLoading, setPastGamesLoading] = useState(false);
+  const [pastGamesError, setPastGamesError] = useState<string | null>(null);
   const [gameForm, setGameForm] = useState({
     title: "",
     start_at: "",
@@ -745,6 +749,12 @@ function FieldFinderPage() {
     id ? filteredFields.find((field) => field.id === id) ?? null : null
   );
 
+  const formatLocalDateTime = (value: string) => {
+    if (!value) return "";
+    const normalized = value.endsWith("Z") ? value : `${value}Z`;
+    return new Date(normalized).toLocaleString();
+  };
+
   const handleSubmitSuggestion = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = suggestionForm.name.trim();
@@ -805,11 +815,36 @@ function FieldFinderPage() {
     }
   }, [currentUser]);
 
-  useEffect(() => {
-    if (showEventsPanel && currentUser) {
-      loadUserEvents();
+  const loadPastGames = useCallback(async () => {
+    setPastGamesLoading(true);
+    setPastGamesError(null);
+    try {
+      const history = await fetchGamesHistory();
+      setPastGames(history);
+    } catch (error) {
+      setPastGamesError(
+        error instanceof Error
+          ? error.message
+          : "Impossible de charger l'historique des matchs."
+      );
+    } finally {
+      setPastGamesLoading(false);
     }
-  }, [currentUser, loadUserEvents, showEventsPanel]);
+  }, []);
+
+  useEffect(() => {
+    if (showEventsPanel) {
+      if (currentUser) {
+        loadUserEvents();
+      }
+      loadPastGames();
+    }
+  }, [currentUser, loadPastGames, loadUserEvents, showEventsPanel]);
+
+  useEffect(() => {
+    // Always keep past games up to date on first load.
+    loadPastGames();
+  }, [loadPastGames]);
 
   const handleCreateGame = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1022,7 +1057,9 @@ function FieldFinderPage() {
           <div className="bg-white shadow-2xl rounded-2xl border border-slate-200 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
               <div>
-                <p className="text-xs uppercase text-emerald-600 font-semibold tracking-wide">Vos matchs</p>
+                <p className="text-xs uppercase text-emerald-600 font-semibold tracking-wide">
+                  Vos matchs
+                </p>
                 <h3 className="text-sm font-bold text-slate-800">Événements à venir</h3>
               </div>
               <button
@@ -1047,7 +1084,7 @@ function FieldFinderPage() {
                         <div>
                           <p className="text-sm font-semibold text-slate-800">{game.title}</p>
                           <p className="text-xs text-slate-500">
-                            {new Date(game.start_at).toLocaleString()} • {game.duration_minutes} min
+                            {formatLocalDateTime(game.start_at)} • {game.duration_minutes} min
                           </p>
                           <p className="text-xs text-slate-500">Terrain #{game.field_id}</p>
                         </div>
@@ -1060,6 +1097,43 @@ function FieldFinderPage() {
                         </span>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="border-t border-slate-100 p-4">
+              <h4 className="text-xs uppercase text-slate-500 font-semibold tracking-wide mb-2">
+                Matchs passés
+              </h4>
+              {pastGamesLoading ? (
+                <p className="text-sm text-slate-500">Chargement...</p>
+              ) : pastGamesError ? (
+                <p className="text-sm text-red-600">{pastGamesError}</p>
+              ) : pastGames.length === 0 ? (
+                <p className="text-sm text-slate-500">Aucun match passé pour le moment.</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {pastGames.map((game) => (
+                    (() => {
+                      const field = fields.find((f) => f.id === game.field_id);
+                      const fieldLabel = field ? field.name : `Terrain #${game.field_id}`;
+                      return (
+                    <div
+                      key={`past-${game.id}`}
+                      className="p-3 rounded-lg border border-slate-200 bg-slate-50 flex items-center justify-between"
+                    >
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-slate-800">{game.title}</p>
+                        <p className="text-xs text-slate-500">
+                          {new Date(game.start_at).toLocaleDateString()} • {fieldLabel}
+                        </p>
+                      </div>
+                      <span className="text-[11px] px-2 py-1 rounded-full bg-slate-200 text-slate-700 font-semibold">
+                        Archivé
+                      </span>
+                    </div>
+                      );
+                    })()
                   ))}
                 </div>
               )}
@@ -1398,7 +1472,7 @@ function FieldFinderPage() {
                                       <div>
                                         <p className="text-sm font-semibold text-slate-800">{game.title}</p>
                                         <p className="text-xs text-slate-500">
-                                          {new Date(game.start_at).toLocaleString()} • {game.duration_minutes} min
+                                          {formatLocalDateTime(game.start_at)} • {game.duration_minutes} min
                                         </p>
                                       </div>
                                       <span className={`px-2 py-1 rounded-full text-xs font-bold ${
