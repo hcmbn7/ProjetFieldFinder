@@ -87,9 +87,20 @@ const FieldCard: React.FC<FieldCardProps> = ({
       <div className="space-y-4">
         <div className="flex items-center space-x-2">
           <MapPin className="h-4 w-4 text-emerald-500" />
-          <span className="text-sm text-emerald-700 font-medium">
-            {field.address}
-          </span>
+          {field.address ? (
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(field.address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-emerald-700 font-medium hover:underline"
+            >
+              {field.address}
+            </a>
+          ) : (
+            <span className="text-sm text-emerald-700 font-medium">
+              —
+            </span>
+          )}
         </div>
 
         {field.rating !== undefined && field.rating !== null && (

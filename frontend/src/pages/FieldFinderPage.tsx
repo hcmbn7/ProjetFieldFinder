@@ -118,8 +118,6 @@ function FieldFinderPage() {
   const [suggestionForm, setSuggestionForm] = useState({
     name: "",
     address: "",
-    latitude: "",
-    longitude: "",
     description: "",
     contact: "",
   });
@@ -763,26 +761,20 @@ function FieldFinderPage() {
       setSuggestionMessage("Veuillez fournir au minimum un nom et une adresse.");
       return;
     }
-    const latitude = Number(suggestionForm.latitude);
-    const longitude = Number(suggestionForm.longitude);
     const payload = {
       name: trimmedName,
       address: trimmedAddress,
-      latitude: Number.isFinite(latitude) ? latitude : undefined,
-      longitude: Number.isFinite(longitude) ? longitude : undefined,
       description: suggestionForm.description.trim() || undefined,
       contact: suggestionForm.contact.trim() || undefined,
     };
     submitSuggestion(payload)
       .then(() => {
-        setSuggestionForm({
-          name: "",
-          address: "",
-          latitude: "",
-          longitude: "",
-          description: "",
-          contact: "",
-        });
+    setSuggestionForm({
+      name: "",
+      address: "",
+      description: "",
+      contact: "",
+    });
         setSuggestionMessage("Merci ! Votre suggestion a été envoyée aux administrateurs.");
       })
       .catch((error) => {
@@ -1321,23 +1313,11 @@ function FieldFinderPage() {
                                  placeholder="Adresse *"
                                  className="bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
                               />
-                              <input
-                                 value={suggestionForm.latitude}
-                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, latitude: e.target.value })}
-                                 placeholder="Latitude"
-                                 className="bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
-                              />
-                              <input
-                                 value={suggestionForm.longitude}
-                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, longitude: e.target.value })}
-                                 placeholder="Longitude"
-                                 className="bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
-                              />
-                              <textarea
-                                 value={suggestionForm.description}
-                                 onChange={(e) => setSuggestionForm({ ...suggestionForm, description: e.target.value })}
-                                 placeholder="Description..."
-                                 rows={3}
+                      <textarea
+                         value={suggestionForm.description}
+                         onChange={(e) => setSuggestionForm({ ...suggestionForm, description: e.target.value })}
+                         placeholder="Description..."
+                         rows={3}
                                  className="sm:col-span-2 bg-black/20 border-transparent text-white placeholder-emerald-200/70 rounded-lg focus:bg-black/30 focus:ring-white focus:border-transparent"
                               />
                               <input
@@ -1743,20 +1723,18 @@ function FieldFinderPage() {
                   )}
                </div>
             ) : (
-               // Grid View
+
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   {filteredFields.length > 0 ? (
                      filteredFields.map(field => (
-                        <div key={field.id} className="h-full">
-                           <FieldCard
-                              field={field}
-                              onClose={() => {}}
-                              onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
-                              isFavorite={favorites.includes(field.id)}
-                              disableFavorite={favoritePendingIds.includes(field.id)}
-                           />
-                        </div>
-                     ))
+                       <div key={field.id} className="h-full">
+                          <FieldCard
+                             field={field}
+                             onToggleFavorite={currentUser ? handleToggleFavorite : undefined}
+                             isFavorite={favorites.includes(field.id)}
+                             disableFavorite={favoritePendingIds.includes(field.id)}
+                          />
+                       </div>                     ))
                   ) : (
                      <div className="col-span-full flex flex-col items-center justify-center py-24 text-slate-400 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
                         <MapPin className="w-12 h-12 mb-4 text-emerald-200" />

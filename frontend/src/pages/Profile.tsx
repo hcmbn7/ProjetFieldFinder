@@ -51,11 +51,6 @@ export default function Profile() {
     }
   }, [navigate]);
 
-  const favoriteIds = useMemo(
-    () => sanitizeFavoriteIds(user?.favorites ?? []),
-    [user?.favorites]
-  );
-
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!user) {
@@ -154,15 +149,6 @@ export default function Profile() {
             </p>
             <p className="rounded-2xl border border-emerald-200/50 bg-emerald-50/40 px-4 py-3 text-emerald-900">
               {user.email}
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-emerald-700">Favoris</p>
-            <p className="rounded-2xl border border-emerald-200/50 bg-emerald-50/40 px-4 py-3 text-emerald-900">
-              {favoriteIds.length > 0
-                ? `${favoriteIds.length} terrain${favoriteIds.length > 1 ? "s" : ""} enregistré${favoriteIds.length > 1 ? "s" : ""}`
-                : "Aucun favori enregistré"}
             </p>
           </div>
 
